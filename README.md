@@ -1,16 +1,16 @@
-# Tamagotchain
+# 🐾 Tamagotchain
 
 A battle-focused Tamagotchi game built on Ethereum where players create, care for, and battle their virtual pets.
 
-## Features
+## ✨ Features
 
-- **Pet Creation** - Create unique virtual pets with stats
-- **Care System** - Feed, play, and rest to maintain pet health
-- **Battle Arena** - Enter battles and earn ETH rewards
-- **Leaderboard** - Compete for top rankings
-- **Play-to-Earn** - Win battles to earn cryptocurrency
+- 🎯 **Pet Creation** - Create unique virtual pets with stats
+- 🍖 **Care System** - Feed, play, and rest to maintain pet health
+- ⚔️ **Battle Arena** - Enter battles and earn ETH rewards
+- 🏆 **Leaderboard** - Compete for top rankings
+- 💰 **Play-to-Earn** - Win battles to earn cryptocurrency
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js >= 18.x
