@@ -1,4 +1,4 @@
-# Tamagotchain V2
+# Tamagotchain
 
 A battle-focused Tamagotchi game built on Ethereum where players create, care for, and battle their virtual pets.
 
@@ -48,7 +48,7 @@ npm run node
 cd blockchain
 npm run deploy
 
-# 3. Seed test data (Optional)
+# 3. Seed test data
 npm run seed
 
 # 4. Start frontend (Terminal 3)
@@ -56,7 +56,7 @@ cd frontend
 npm run dev
 ```
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 Tamagotchain/
@@ -76,7 +76,7 @@ Tamagotchain/
 └── asset/             # Game assets
 ```
 
-## Game Mechanics
+## 🎮 Game Mechanics
 
 ### Pet Management
 - **Create Pet**: Free (gas only)
@@ -96,7 +96,7 @@ Tamagotchain/
 - **Energy**: Required for battles (minimum 20)
 - **Combat Power (CP)**: Calculated from all stats
 
-## Smart Contracts
+## 🔧 Smart Contracts
 
 ### Contract Architecture
 - **TamagotChain.sol** - Core pet management
@@ -120,7 +120,7 @@ function enterBattle() external payable
 function getPlayerStats(address _player) external view returns (...)
 ```
 
-## Frontend
+## 🌐 Frontend
 
 ### Technology Stack
 - **React 19** - UI framework
@@ -137,7 +137,7 @@ function getPlayerStats(address _player) external view returns (...)
 - Leaderboard display
 - Wallet integration
 
-## Testing
+## 🧪 Testing
 
 ### Contract Testing
 ```bash
@@ -155,13 +155,13 @@ npm run seed
 node scripts/debug.js
 ```
 
-## Documentation
+## 📚 Documentation
 
 - [Error Report](./docs/error-report.md) - Common issues and solutions
 - [API Documentation](./docs/) - Contract interfaces
 - [Game Guide](./docs/) - How to play
 
-## Troubleshooting
+## 🚨 Troubleshooting
 
 ### Common Issues
 
@@ -178,7 +178,7 @@ node scripts/debug.js
 
 See [Error Report](./docs/error-report.md) for detailed solutions.
 
-## Development Commands
+## 🛠 Development Commands
 
 ### Blockchain
 ```bash
@@ -198,16 +198,13 @@ npm run build      # Build for production
 npm run preview    # Preview build
 ```
 
-## License
-
-MIT License - see LICENSE file for details.
-
-## Links
+## 🔗 Links
 
 - [Demo](https://tamagotchain-demo.com) (Coming soon)
 - [Documentation](./docs/)
 - [Bug Reports](./docs/error-report.md)
+- [Setup Guide](./asset/setup-guide.txt)
 
 ---
 
-**Built for the Web3 gaming community**
+**Built with ❤️ for the Web3 gaming community**

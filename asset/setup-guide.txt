@@ -1,4 +1,4 @@
-TAMAGOTCHAIN V2 - SETUP GUIDE FOR DEVELOPERS
+TAMAGOTCHAIN - SETUP GUIDE FOR DEVELOPERS
 ================================================================
 
 PREREQUISITES
@@ -165,6 +165,6 @@ NEED HELP?
 Happy coding!
 
 ================================================================
-Last updated: November 2024
-Project: Tamagotchain V2
+Last updated: November 2025
+Project: Tamagotchain
 Status: Ready for development
