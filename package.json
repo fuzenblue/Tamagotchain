@@ -1,0 +1,32 @@
+{
+  "name": "tamagotchain",
+  "version": "1.0.0",
+  "description": "",
+  "workspaces": [
+    "blockchain",
+    "frontend"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "chain": "cd blockchain && npm run node",
+    "deploy": "cd blockchain && npm run deploy:local",
+    "test": "cd blockchain && npm test",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run chain\" \"npm run frontend\"",
+    "build": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fuzenblue/Tamagotchain.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fuzenblue/Tamagotchain/issues"
+  },
+  "homepage": "https://github.com/fuzenblue/Tamagotchain#readme"
+}

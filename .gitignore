@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment
+.env
+.env.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Blockchain artifacts
+blockchain/artifacts/
+blockchain/cache/
+blockchain/typechain-types/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
