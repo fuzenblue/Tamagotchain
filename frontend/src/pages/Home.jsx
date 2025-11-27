@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // 👈 1. Import ตัวเปลี่ยนหน้า
 import PetDisplay from '../components/PetDisplay';
 
-// --- Components ย่อยสำหรับ UI ---
+// --- Components ย่อยสำหรับ UI สวยๆ ---
 
-// 1. หลอดพลัง (Pixel Bar)
+// 1. หลอดพลัง (Pixel Art Style)
 const PixelBar = ({ label, value, max, color }) => {
   const percentage = Math.max(0, Math.min((value / max) * 100, 100));
   return (
@@ -18,7 +17,7 @@ const PixelBar = ({ label, value, max, color }) => {
           className={`h-full transition-all duration-500 ${color}`}
           style={{ width: `${percentage}%` }}
         ></div>
-        {/* ลายเงาคาดหลอด */}
+        {/* ลายเงาคาดหลอดให้ดูนูนๆ */}
         <div className="absolute top-0 left-0 w-full h-1 bg-white opacity-30"></div>
       </div>
     </div>
@@ -40,11 +39,13 @@ const SideButton = ({ emoji, label, onClick, disabled }) => (
   >
     <span className="text-2xl group-hover:scale-110 transition-transform">{emoji}</span>
     <span className="text-[8px] text-white font-bold mt-1 uppercase">{label}</span>
+    
+    {/* เงาปุ่ม */}
     <div className="absolute inset-0 border-t-4 border-white opacity-10 rounded-xl pointer-events-none"></div>
   </button>
 );
 
-// 3. ช่องใส่อุปกรณ์ (Equipment Slot)
+// 3. ช่องอุปกรณ์ (Equipment Slot)
 const EquipSlot = () => (
   <div className="w-16 h-16 mb-4 bg-gray-700 border-4 border-gray-900 rounded-xl shadow-inner flex items-center justify-center opacity-50">
     <span className="text-gray-500 text-xs">EMPTY</span>
@@ -53,27 +54,24 @@ const EquipSlot = () => (
 
 // --- Main Dashboard ---
 const Dashboard = () => {
-  const navigate = useNavigate(); // 👈 2. เรียกใช้ฟังก์ชันนำทาง
-
   // Stats
   const [hunger, setHunger] = useState(100);
   const [happiness, setHappiness] = useState(80);
   const [energy, setEnergy] = useState(90);
   const [petStatus, setPetStatus] = useState('IDLE');
 
-  // ⏳ ระบบลดค่าพลัง (ปรับให้ช้าลงแล้ว: ลดทีละ 1 ทุกๆ 3 วินาที)
+  // ⏳ ระบบลดค่าพลัง (Logic เดิม)
   useEffect(() => {
     const timer = setInterval(() => {
       setHunger((prev) => {
         if (prev <= 0) return 0;
-        return Math.max(0, prev - 1); 
+        return Math.max(0, prev - 2); // ลดทีละ 2
       });
-    }, 3000); 
-
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // 🏥 ระบบเช็คสถานะ (ป่วย/ตาย)
+  // 🏥 ระบบเช็คสถานะ (Logic ป่วย/ตาย)
   useEffect(() => {
     if (hunger <= 0) {
       setPetStatus('DEAD');
@@ -84,11 +82,11 @@ const Dashboard = () => {
     }
   }, [hunger]);
 
-  // Actions Logic
+  // Actions
   const handleFeed = () => {
     if (petStatus === 'DEAD') return;
     setPetStatus('EAT');
-    setHunger(prev => Math.min(prev + 30, 100)); // เพิ่มเลือด 30
+    setHunger(prev => Math.min(prev + 30, 100));
     setTimeout(() => setPetStatus('IDLE'), 2000);
   };
 
@@ -114,16 +112,16 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-mono select-none">
       
-      {/* 📱 กรอบเครื่องเกม */}
+      {/* 📱 ตัวเครื่อง (Device Frame) */}
       <div className="relative bg-[#Fdfbf7] p-8 rounded-[40px] border-[12px] border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-w-3xl w-full">
         
-        {/* น็อตตกแต่ง */}
+        {/* น็อตตกแต่งตามมุม (Cosmetic Screws) */}
         <div className="absolute top-4 left-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
         <div className="absolute top-4 right-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
         <div className="absolute bottom-4 left-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
         <div className="absolute bottom-4 right-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
 
-        {/* 1. Header: Health Bar ใหญ่ */}
+        {/* 1. Header: Health Bar ใหญ่ๆ */}
         <div className="flex flex-col items-center mb-6 px-12">
           <h2 className="text-xl font-black text-gray-800 tracking-widest mb-1">HEALTH</h2>
           <div className="w-full max-w-md h-6 bg-gray-800 rounded-full p-1">
@@ -134,18 +132,17 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* 2. พื้นที่หลัก (จอ + ปุ่ม) */}
+        {/* 2. Main Content Area */}
         <div className="flex justify-between items-start gap-6">
           
-          {/* ซ้าย: ปุ่มกด Action */}
+          {/* Left Column: Actions */}
           <div className="flex flex-col pt-8">
             <SideButton emoji="🍖" label="FEED" onClick={handleFeed} disabled={petStatus === 'DEAD'} />
-            <SideButton emoji="💤" label="Sleep" onClick={handleSleep} disabled={petStatus === 'DEAD'} />
-            <SideButton emoji="🎮" label="Play" onClick={handlePlay} disabled={petStatus === 'DEAD'} />
-            <SideButton emoji="⚔️" label="BATTLE" onClick={() => navigate('/battle')} disabled={petStatus === 'DEAD' || petStatus === 'TIRED'} />
+            <SideButton emoji="🎾" label="PLAY" onClick={handlePlay} disabled={petStatus === 'DEAD'} />
+            <SideButton emoji="💤" label="REST" onClick={handleSleep} disabled={petStatus === 'DEAD'} />
           </div>
 
-          {/* กลาง: หน้าจอ + Stats ย่อย */}
+          {/* Center Column: Screen & Stats */}
           <div className="flex-1 flex flex-col gap-4">
             
             {/* Stats Bar เล็กๆ */}
@@ -153,12 +150,12 @@ const Dashboard = () => {
               <PixelBar label="Hunger" value={hunger} max={100} color="bg-yellow-400" />
               <PixelBar label="Happiness" value={happiness} max={100} color="bg-pink-400" />
               <PixelBar label="Energy" value={energy} max={100} color="bg-blue-400" />
-              <PixelBar label="Clean" value={100} max={100} color="bg-cyan-400" />
+              <PixelBar label="Cleanliness" value={100} max={100} color="bg-cyan-400" />
             </div>
 
-            {/* 📺 จอแสดงผลสัตว์เลี้ยง */}
+            {/* 📺 Game Screen (หน้าจอหลัก) */}
             <div className="relative w-full aspect-[4/3] bg-gray-800 rounded-2xl border-[6px] border-gray-700 shadow-inner overflow-hidden group">
-              {/* พื้นหลัง */}
+              {/* Background */}
               <div 
                 className="absolute inset-0 transition-all duration-1000"
                 style={{ 
@@ -169,12 +166,12 @@ const Dashboard = () => {
                 }}
               />
               
-              {/* ตัวสัตว์เลี้ยง */}
+              {/* Pet Display */}
               <div className="absolute inset-0 flex items-end justify-center pb-6">
                  <PetDisplay status={petStatus} size={180} />
               </div>
 
-              {/* หน้าจอ Game Over */}
+              {/* Dead Overlay (ปุ่ม Revive) */}
               {petStatus === 'DEAD' && (
                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
                   <span className="text-3xl mb-4">💀</span>
@@ -190,11 +187,17 @@ const Dashboard = () => {
             </div>
           </div>
 
-        
+          {/* Right Column: Equipment (Placeholders) */}
+          <div className="flex flex-col items-center pt-8">
+             <div className="text-[10px] font-bold text-gray-500 mb-2 tracking-widest">EQUIP</div>
+             <EquipSlot />
+             <EquipSlot />
+             <EquipSlot />
+          </div>
 
         </div>
 
-        {/* 3. ล่าง: ปุ่มเมนู */}
+        {/* 3. Bottom: Shop/Inventory */}
         <div className="flex justify-center gap-8 mt-8">
            <button className="flex flex-col items-center gap-1 group">
              <div className="w-12 h-12 rounded-full bg-gray-200 border-4 border-gray-800 flex items-center justify-center group-hover:bg-yellow-100 transition-colors">
