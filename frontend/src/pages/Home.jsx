@@ -1,72 +1,216 @@
-// frontend/src/pages/Dashboard.jsx
-import React, { useState } from 'react';
-import Button from '../components/common/Button';
+import React, { useState, useEffect } from 'react';
 import PetDisplay from '../components/PetDisplay';
 
+// --- Components ย่อยสำหรับ UI สวยๆ ---
+
+// 1. หลอดพลัง (Pixel Art Style)
+const PixelBar = ({ label, value, max, color }) => {
+  const percentage = Math.max(0, Math.min((value / max) * 100, 100));
+  return (
+    <div className="flex flex-col w-full mb-2">
+      <div className="flex justify-between text-[10px] font-bold uppercase mb-1 text-gray-700 tracking-wider font-mono">
+        <span>{label}</span>
+        <span>{Math.floor(value)}%</span>
+      </div>
+      <div className="h-4 bg-gray-300 border-2 border-gray-900 rounded-lg overflow-hidden relative">
+        <div
+          className={`h-full transition-all duration-500 ${color}`}
+          style={{ width: `${percentage}%` }}
+        ></div>
+        {/* ลายเงาคาดหลอดให้ดูนูนๆ */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-white opacity-30"></div>
+      </div>
+    </div>
+  );
+};
+
+// 2. ปุ่มด้านข้าง (Side Button)
+const SideButton = ({ emoji, label, onClick, disabled }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`
+      w-16 h-16 mb-4 flex flex-col items-center justify-center 
+      bg-gray-800 border-4 border-gray-900 rounded-xl shadow-lg
+      hover:bg-gray-700 active:scale-95 transition-all
+      disabled:opacity-50 disabled:cursor-not-allowed
+      group relative
+    `}
+  >
+    <span className="text-2xl group-hover:scale-110 transition-transform">{emoji}</span>
+    <span className="text-[8px] text-white font-bold mt-1 uppercase">{label}</span>
+    
+    {/* เงาปุ่ม */}
+    <div className="absolute inset-0 border-t-4 border-white opacity-10 rounded-xl pointer-events-none"></div>
+  </button>
+);
+
+// 3. ช่องอุปกรณ์ (Equipment Slot)
+const EquipSlot = () => (
+  <div className="w-16 h-16 mb-4 bg-gray-700 border-4 border-gray-900 rounded-xl shadow-inner flex items-center justify-center opacity-50">
+    <span className="text-gray-500 text-xs">EMPTY</span>
+  </div>
+);
+
+// --- Main Dashboard ---
 const Dashboard = () => {
+  // Stats
+  const [hunger, setHunger] = useState(100);
+  const [happiness, setHappiness] = useState(80);
+  const [energy, setEnergy] = useState(90);
   const [petStatus, setPetStatus] = useState('IDLE');
 
-  // ฟังก์ชันจำลองการกระทำ
-  const handleAction = (action) => {
-    setPetStatus(action);
-    // หลังจาก 3 วินาที ให้กลับมายืนเฉยๆ
-    setTimeout(() => {
+  // ⏳ ระบบลดค่าพลัง (Logic เดิม)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHunger((prev) => {
+        if (prev <= 0) return 0;
+        return Math.max(0, prev - 2); // ลดทีละ 2
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 🏥 ระบบเช็คสถานะ (Logic ป่วย/ตาย)
+  useEffect(() => {
+    if (hunger <= 0) {
+      setPetStatus('DEAD');
+    } else if (hunger <= 30) {
+      setPetStatus('TIRED');
+    } else if (petStatus !== 'EAT' && petStatus !== 'WALK' && petStatus !== 'SLEEP') {
       setPetStatus('IDLE');
-    }, 3000);
+    }
+  }, [hunger]);
+
+  // Actions
+  const handleFeed = () => {
+    if (petStatus === 'DEAD') return;
+    setPetStatus('EAT');
+    setHunger(prev => Math.min(prev + 30, 100));
+    setTimeout(() => setPetStatus('IDLE'), 2000);
+  };
+
+  const handlePlay = () => {
+    if (petStatus === 'DEAD') return;
+    setPetStatus('WALK');
+    setHappiness(prev => Math.min(prev + 20, 100));
+    setTimeout(() => setPetStatus('IDLE'), 2000);
+  };
+
+  const handleSleep = () => {
+    if (petStatus === 'DEAD') return;
+    setPetStatus('SLEEP');
+    setEnergy(prev => Math.min(prev + 50, 100));
+    setTimeout(() => setPetStatus('IDLE'), 3000);
+  };
+
+  const handleRevive = () => {
+    setHunger(100);
+    setPetStatus('IDLE');
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-mono">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-mono select-none">
       
-      {/* 🎮 Game Container */}
-      <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl border-4 border-gray-600 max-w-md w-full">
+      {/* 📱 ตัวเครื่อง (Device Frame) */}
+      <div className="relative bg-[#Fdfbf7] p-8 rounded-[40px] border-[12px] border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-w-3xl w-full">
         
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8 text-white">
-          <div>
-            <h1 className="text-xl font-bold text-yellow-400">Nong Dragon 🐲</h1>
-            <p className="text-xs text-gray-400">Level 1</p>
-          </div>
-          <div className="bg-gray-700 px-3 py-1 rounded-lg text-sm">
-            💎 0.00 ETH
+        {/* น็อตตกแต่งตามมุม (Cosmetic Screws) */}
+        <div className="absolute top-4 left-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
+        <div className="absolute top-4 right-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
+        <div className="absolute bottom-4 left-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
+        <div className="absolute bottom-4 right-4 w-4 h-4 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center"><div className="w-2 h-0.5 bg-gray-400 transform rotate-45"></div></div>
+
+        {/* 1. Header: Health Bar ใหญ่ๆ */}
+        <div className="flex flex-col items-center mb-6 px-12">
+          <h2 className="text-xl font-black text-gray-800 tracking-widest mb-1">HEALTH</h2>
+          <div className="w-full max-w-md h-6 bg-gray-800 rounded-full p-1">
+             <div 
+               className={`h-full rounded-full transition-all duration-500 ${petStatus === 'TIRED' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
+               style={{ width: `${hunger}%` }}
+             ></div>
           </div>
         </div>
 
-        {/* 🖼️ Pet Screen */}
-        <div className="bg-blue-200 rounded-xl border-4 border-gray-700 h-64 flex items-center justify-center mb-6 relative overflow-hidden">
-          {/* Background (ใส่รูป bg.png ตรงนี้ได้) */}
-          <div className="absolute inset-0 opacity-30" 
-               style={{ backgroundImage: "url('/assets/pets/bg.png')", backgroundSize: 'cover' }}>
-          </div>
+        {/* 2. Main Content Area */}
+        <div className="flex justify-between items-start gap-6">
           
-          {/* ตัว Pet */}
-          <PetDisplay status={petStatus} size={160} />
+          {/* Left Column: Actions */}
+          <div className="flex flex-col pt-8">
+            <SideButton emoji="🍖" label="FEED" onClick={handleFeed} disabled={petStatus === 'DEAD'} />
+            <SideButton emoji="🎾" label="PLAY" onClick={handlePlay} disabled={petStatus === 'DEAD'} />
+            <SideButton emoji="💤" label="REST" onClick={handleSleep} disabled={petStatus === 'DEAD'} />
+          </div>
+
+          {/* Center Column: Screen & Stats */}
+          <div className="flex-1 flex flex-col gap-4">
+            
+            {/* Stats Bar เล็กๆ */}
+            <div className="grid grid-cols-2 gap-4 px-2">
+              <PixelBar label="Hunger" value={hunger} max={100} color="bg-yellow-400" />
+              <PixelBar label="Happiness" value={happiness} max={100} color="bg-pink-400" />
+              <PixelBar label="Energy" value={energy} max={100} color="bg-blue-400" />
+              <PixelBar label="Cleanliness" value={100} max={100} color="bg-cyan-400" />
+            </div>
+
+            {/* 📺 Game Screen (หน้าจอหลัก) */}
+            <div className="relative w-full aspect-[4/3] bg-gray-800 rounded-2xl border-[6px] border-gray-700 shadow-inner overflow-hidden group">
+              {/* Background */}
+              <div 
+                className="absolute inset-0 transition-all duration-1000"
+                style={{ 
+                  backgroundImage: "url('/assets/pets/bg.png')", 
+                  backgroundSize: 'cover', 
+                  backgroundPosition: 'center',
+                  filter: petStatus === 'DEAD' ? 'grayscale(100%) brightness(50%)' : 'none'
+                }}
+              />
+              
+              {/* Pet Display */}
+              <div className="absolute inset-0 flex items-end justify-center pb-6">
+                 <PetDisplay status={petStatus} size={180} />
+              </div>
+
+              {/* Dead Overlay (ปุ่ม Revive) */}
+              {petStatus === 'DEAD' && (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
+                  <span className="text-3xl mb-4">💀</span>
+                  <h3 className="text-white text-xl font-bold mb-4 pixel-font">GAME OVER</h3>
+                  <button 
+                    onClick={handleRevive}
+                    className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold rounded border-b-4 border-yellow-700 active:border-b-0 active:mt-1 transition-all"
+                  >
+                    TRY AGAIN
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Equipment (Placeholders) */}
+          <div className="flex flex-col items-center pt-8">
+             <div className="text-[10px] font-bold text-gray-500 mb-2 tracking-widest">EQUIP</div>
+             <EquipSlot />
+             <EquipSlot />
+             <EquipSlot />
+          </div>
+
         </div>
 
-        {/* 📊 Stats Bar (เดี๋ยวค่อยแยก Component) */}
-        <div className="space-y-2 mb-6">
-          <div className="flex justify-between text-white text-xs">
-            <span>Hunger</span> <span>80/100</span>
-          </div>
-          <div className="w-full bg-gray-700 rounded-full h-2.5">
-            <div className="bg-orange-500 h-2.5 rounded-full" style={{ width: '80%' }}></div>
-          </div>
-        </div>
-
-        {/* 🔘 Controls */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button onClick={() => handleAction('EAT')} variant="primary">
-            🍖 Feed
-          </Button>
-          <Button onClick={() => handleAction('WALK')} variant="success">
-            🎾 Play
-          </Button>
-          <Button onClick={() => handleAction('SLEEP')} variant="secondary">
-            💤 Sleep
-          </Button>
-          <Button onClick={() => handleAction('DEAD')} variant="danger">
-            💀 Kill (Test)
-          </Button>
+        {/* 3. Bottom: Shop/Inventory */}
+        <div className="flex justify-center gap-8 mt-8">
+           <button className="flex flex-col items-center gap-1 group">
+             <div className="w-12 h-12 rounded-full bg-gray-200 border-4 border-gray-800 flex items-center justify-center group-hover:bg-yellow-100 transition-colors">
+               🛒
+             </div>
+             <span className="text-[10px] font-bold text-gray-600">SHOP</span>
+           </button>
+           <button className="flex flex-col items-center gap-1 group">
+             <div className="w-12 h-12 rounded-full bg-gray-200 border-4 border-gray-800 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+               🎒
+             </div>
+             <span className="text-[10px] font-bold text-gray-600">ITEMS</span>
+           </button>
         </div>
 
       </div>
