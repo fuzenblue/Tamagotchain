@@ -7,5 +7,4 @@ const MyPet = () => {
         </div>
     )
 }
-
 export default MyPet
