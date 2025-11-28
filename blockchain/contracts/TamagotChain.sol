@@ -14,7 +14,9 @@ contract TamagotChain {
         uint256 hunger;        // 0-100
         uint256 happiness;     // 0-100
         uint256 energy;        // 0-100
+        uint256 cleanliness;   // 0-100
         uint256 lastUpdate;    // timestamp
+        uint256 lastClean;     // timestamp
         uint256 birthTime;     // timestamp
         bool alive;
     }
@@ -25,9 +27,9 @@ contract TamagotChain {
     mapping(address => bool) public hasPet;
     
     uint256 public constant MAX_STAT = 100;
-    uint256 public constant HUNGER_DECAY_RATE = 10;    // per hour
-    uint256 public constant HAPPINESS_DECAY_RATE = 5;  // per hour
-    uint256 public constant ENERGY_DECAY_RATE = 10;    // per hour
+    uint256 public constant HUNGER_DECAY_RATE = 1;     // per hour
+    uint256 public constant HAPPINESS_DECAY_RATE = 1;  // per 2 hours (0.5/hour)
+    uint256 public constant ENERGY_DECAY_RATE = 1;     // per hour
     
     uint256 public totalPets;
     
@@ -62,7 +64,9 @@ contract TamagotChain {
             hunger: 50,
             happiness: 50,
             energy: 50,
+            cleanliness: 100,
             lastUpdate: block.timestamp,
+            lastClean: block.timestamp,
             birthTime: block.timestamp,
             alive: true
         });
@@ -117,28 +121,77 @@ contract TamagotChain {
     }
     
     /**
-     * @dev Get pet info
+     * @dev Check if address has a pet (alternative name for compatibility)
+     */
+    function hasPetFunction(address _owner) external view returns (bool) {
+        return hasPet[_owner];
+    }
+    
+    /**
+     * @dev Get pet info with real-time decay calculation
      */
     function getPet(address _owner) external view returns (
         string memory name,
         uint256 hunger,
         uint256 happiness,
         uint256 energy,
+        uint256 cleanliness,
         uint256 lastUpdate,
         uint256 birthTime,
         bool alive
     ) {
         if (!hasPet[_owner]) {
-            return ("", 0, 0, 0, 0, 0, false);
+            return ("", 0, 0, 0, 0, 0, 0, false);
         }
         
         Pet memory pet = pets[_owner];
+        
+        // Calculate decay in real-time
+        if (pet.alive) {
+            uint256 timeElapsed = block.timestamp - pet.lastUpdate;
+            uint256 hoursElapsed = timeElapsed / 1 hours;
+            
+            if (hoursElapsed > 0) {
+                // Calculate decay
+                uint256 hungerDecay = hoursElapsed * HUNGER_DECAY_RATE;
+                uint256 happinessDecay = hoursElapsed * HAPPINESS_DECAY_RATE;
+                uint256 energyDecay = hoursElapsed * ENERGY_DECAY_RATE;
+                
+                // Apply decay (prevent underflow)
+                pet.hunger = pet.hunger > hungerDecay ? pet.hunger - hungerDecay : 0;
+                pet.happiness = pet.happiness > happinessDecay ? pet.happiness - happinessDecay : 0;
+                pet.energy = pet.energy > energyDecay ? pet.energy - energyDecay : 0;
+            }
+        }
+        
+        // Calculate cleanliness decay
+        uint256 currentCleanliness = pet.cleanliness;
+        uint256 timeSinceClean = block.timestamp - pet.lastClean;
+        uint256 totalStats = pet.hunger + pet.happiness;
+        
+        if (totalStats > 160) {
+            // Decay 13.8% per hour
+            uint256 hoursElapsed = timeSinceClean / 1 hours;
+            uint256 decay = (138 * hoursElapsed) / 10;
+            currentCleanliness = currentCleanliness > decay ? currentCleanliness - decay : 0;
+        } else if (totalStats >= 140) {
+            // Decay 13.8% per 10 minutes
+            uint256 periodsElapsed = timeSinceClean / 10 minutes;
+            uint256 decay = (138 * periodsElapsed) / 10;
+            currentCleanliness = currentCleanliness > decay ? currentCleanliness - decay : 0;
+        } else {
+            // Decay 21.46% per 45 minutes
+            uint256 periodsElapsed = timeSinceClean / 45 minutes;
+            uint256 decay = (2146 * periodsElapsed) / 100;
+            currentCleanliness = currentCleanliness > decay ? currentCleanliness - decay : 0;
+        }
         
         return (
             pet.name,
             pet.hunger,
             pet.happiness,
             pet.energy,
+            currentCleanliness,
             pet.lastUpdate,
             pet.birthTime,
             pet.alive
@@ -151,14 +204,15 @@ contract TamagotChain {
     function getCurrentStats(address _owner) external view returns (
         uint256 hunger,
         uint256 happiness,
-        uint256 energy
+        uint256 energy,
+        uint256 cleanliness
     ) {
         if (!hasPet[_owner]) {
-            return (0, 0, 0);
+            return (0, 0, 0, 0);
         }
         
         Pet storage pet = pets[_owner];
-        return (pet.hunger, pet.happiness, pet.energy);
+        return (pet.hunger, pet.happiness, pet.energy, pet.cleanliness);
     }
     
     /**
@@ -181,7 +235,9 @@ contract TamagotChain {
         pet.hunger = 50;
         pet.happiness = 50;
         pet.energy = 50;
+        pet.cleanliness = 100;
         pet.lastUpdate = block.timestamp;
+        pet.lastClean = block.timestamp;
         
         emit PetRevived(msg.sender, block.timestamp);
     }
@@ -202,6 +258,9 @@ contract TamagotChain {
         } else if (_statType == 2) { // Energy
             pet.energy = pet.energy + _amount > MAX_STAT ? MAX_STAT : pet.energy + _amount;
         }
+        
+        // Update lastUpdate to current timestamp to reset decay calculation
+        pet.lastUpdate = block.timestamp;
         
         emit StatsUpdated(_owner, pet.hunger, pet.happiness, pet.energy);
     }

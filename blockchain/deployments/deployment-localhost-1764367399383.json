@@ -2,8 +2,8 @@
   "network": "localhost",
   "chainId": "1337",
   "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "timestamp": "2025-11-26T17:50:10.657Z",
+  "timestamp": "2025-11-28T22:03:19.383Z",
   "contracts": {
-    "Leaderboard": "0x0B306BF915C4d645ff596e518fAf3F9669b97016"
+    "Leaderboard": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
   }
 }

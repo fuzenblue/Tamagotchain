@@ -11,29 +11,33 @@ contract CareSystem is TamagotChain {
     
     // ============ Constants ============
     
-    uint256 public constant FEED_COST = 0.001 ether;
-    uint256 public constant PLAY_COST = 0.001 ether;
+    uint256 public constant FEED_COST = 0.8 ether;
+    uint256 public constant PLAY_COST = 0.5 ether;
     uint256 public constant REST_COST = 0 ether; // Free
+    uint256 public constant CLEAN_COST = 0.4 ether;
     
     uint256 public constant FEED_AMOUNT = 20;
     uint256 public constant PLAY_AMOUNT = 20;
     uint256 public constant REST_AMOUNT = 20;
     
-    uint256 public constant FEED_COOLDOWN = 1 hours;
-    uint256 public constant PLAY_COOLDOWN = 1 hours;
-    uint256 public constant REST_COOLDOWN = 2 hours;
+    uint256 public constant FEED_COOLDOWN = 10 seconds;
+    uint256 public constant PLAY_COOLDOWN = 10 seconds;
+    uint256 public constant REST_COOLDOWN = 10 seconds;
+    uint256 public constant CLEAN_COOLDOWN = 10 seconds;
     
     // ============ State Variables ============
     
     mapping(address => uint256) public lastFeedTime;
     mapping(address => uint256) public lastPlayTime;
     mapping(address => uint256) public lastRestTime;
+    mapping(address => uint256) public lastCleanTime;
     
     // ============ Events ============
     
     event PetFed(address indexed owner, uint256 newHunger, uint256 timestamp);
     event PetPlayed(address indexed owner, uint256 newHappiness, uint256 timestamp);
     event PetRested(address indexed owner, uint256 newEnergy, uint256 timestamp);
+    event PetCleaned(address indexed owner, uint256 newCleanliness, uint256 timestamp);
     
     // ============ Care Functions ============
     
@@ -109,26 +113,52 @@ contract CareSystem is TamagotChain {
     }
     
     /**
-     * @dev Get remaining cooldown time
+     * @dev Get next available time (timestamp)
      */
     function getFeedCooldown(address _owner) external view returns (uint256) {
-        if (block.timestamp >= lastFeedTime[_owner] + FEED_COOLDOWN) {
-            return 0;
-        }
-        return (lastFeedTime[_owner] + FEED_COOLDOWN) - block.timestamp;
+        return lastFeedTime[_owner] + FEED_COOLDOWN;
     }
     
     function getPlayCooldown(address _owner) external view returns (uint256) {
-        if (block.timestamp >= lastPlayTime[_owner] + PLAY_COOLDOWN) {
-            return 0;
-        }
-        return (lastPlayTime[_owner] + PLAY_COOLDOWN) - block.timestamp;
+        return lastPlayTime[_owner] + PLAY_COOLDOWN;
     }
     
     function getRestCooldown(address _owner) external view returns (uint256) {
-        if (block.timestamp >= lastRestTime[_owner] + REST_COOLDOWN) {
-            return 0;
-        }
-        return (lastRestTime[_owner] + REST_COOLDOWN) - block.timestamp;
+        return lastRestTime[_owner] + REST_COOLDOWN;
+    }
+    
+    /**
+     * @dev Clean pet (costs 0.4 ETH, -10% energy)
+     */
+    function clean() external payable onlyPetOwner {
+        require(msg.value == CLEAN_COST, "Incorrect payment");
+        require(
+            block.timestamp >= lastCleanTime[msg.sender] + CLEAN_COOLDOWN,
+            "Clean cooldown active"
+        );
+        
+        updateStats();
+        
+        Pet storage pet = pets[msg.sender];
+        
+        // Reduce energy by 10%
+        uint256 energyReduction = pet.energy / 10;
+        pet.energy = pet.energy > energyReduction ? pet.energy - energyReduction : 0;
+        
+        // Reset cleanliness
+        pet.cleanliness = 100;
+        pet.lastClean = block.timestamp;
+        lastCleanTime[msg.sender] = block.timestamp;
+        
+        emit PetCleaned(msg.sender, pet.cleanliness, block.timestamp);
+    }
+    
+    function canClean(address _owner) external view returns (bool) {
+        if (!hasPet[_owner] || !pets[_owner].alive) return false;
+        return block.timestamp >= lastCleanTime[_owner] + CLEAN_COOLDOWN;
+    }
+    
+    function getCleanCooldown(address _owner) external view returns (uint256) {
+        return lastCleanTime[_owner] + CLEAN_COOLDOWN;
     }
 }

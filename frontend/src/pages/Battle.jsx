@@ -1,303 +1,326 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import PetDisplay from '../components/PetDisplay';
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useBattle } from '../hooks/useBattle'
+import { usePet } from '../hooks/usePet'
+import { useWallet } from '../hooks/useWallet'
+import PetDisplay from '../components/PetDisplay'
+
+const formatAddress = (address) => {
+  if (!address) return ''
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+const formatEther = (wei) => {
+  if (!wei) return '0'
+  return (Number(wei) / 1e18).toFixed(4)
+}
+
+const formatTimeRemaining = (seconds) => {
+  if (seconds <= 0) return '0s'
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+}
 
 const Battle = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useNavigate()
+  const { isConnected, connectWallet } = useWallet()
+  const { pet, hasPet, currentStats, combatPower } = usePet()
+  const {
+    playerStats,
+    battleHistory,
+    battleCooldown,
+    canBattle,
+    enterBattle,
+    isLoading,
+    isWaitingTx,
+    error,
+    getBattleResult,
+  } = useBattle()
 
-  // --- 1. รับค่า Stats จากหน้า MyPet ---
-  const { 
-    playerHealth = 80, 
-    hunger = 50, 
-    happiness = 50, 
-    energy = 50,
-    petName = "MY PET" // รับชื่อมาด้วย (ถ้ามี)
-  } = location.state || {}; // กัน Crash กรณีเข้าลิงก์ตรงๆ
+  const [battleState, setBattleState] = useState('IDLE')
+  const [showHistory, setShowHistory] = useState(false)
 
-  // --- 2. State การต่อสู้ ---
-  const [battleState, setBattleState] = useState('IDLE'); // IDLE, FIGHTING, FINISHED
-  const [myPower, setMyPower] = useState(playerHealth);   // พลังโชว์หน้า UI
-  const [enemyPower, setEnemyPower] = useState(0);        // พลังศัตรู
-  const [winner, setWinner] = useState(null);
-  const [logs, setLogs] = useState([]);
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: "url('/assets/pets/btbg.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(40%)'
+          }}
+        />
+        <div className="relative z-10 text-center bg-black/60 p-8 rounded-xl border-4 border-yellow-600">
+          <h1 className="text-4xl mb-4 text-yellow-400 font-bold">⚔️ Battle Arena</h1>
+          <p className="mb-6 text-white">Connect your wallet to enter battles</p>
+          <button
+            onClick={connectWallet}
+            className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400"
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    )
+  }
 
-  // ตั้งชื่อศัตรูสุ่ม
-  const ENEMY_NAMES = ["Dark Dragon", "Shadow Fang", "Void Beast", "Crimson Eye"];
-  const [enemyName] = useState(ENEMY_NAMES[Math.floor(Math.random() * ENEMY_NAMES.length)]);
+  if (!hasPet) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: "url('/assets/pets/btbg.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(40%)'
+          }}
+        />
+        <div className="relative z-10 text-center bg-black/60 p-8 rounded-xl border-4 border-yellow-600">
+          <h1 className="text-4xl mb-4 text-yellow-400 font-bold">⚔️ Battle Arena</h1>
+          <p className="mb-6 text-white">You need a pet to battle!</p>
+          <button
+            onClick={() => navigate('/my-pet')}
+            className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400"
+          >
+            Create Pet
+          </button>
+        </div>
+      </div>
+    )
+  }
 
-  // --- 3. Logic คำนวณพลัง (หัวใจสำคัญ) ---
-  const calculateCombatPower = () => {
-    let power = playerHealth;
-    let battleLogs = [`Base Health Power: ${power}`];
+  if (!pet?.alive) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: "url('/assets/pets/btbg.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(40%)'
+          }}
+        />
+        <div className="relative z-10 text-center bg-black/60 p-8 rounded-xl border-4 border-yellow-600">
+          <div className="text-6xl mb-4">💀</div>
+          <h1 className="text-4xl mb-4 text-red-400 font-bold">Your Pet is Dead</h1>
+          <p className="mb-6 text-white">Revive your pet to continue battling</p>
+          <button
+            onClick={() => navigate('/my-pet')}
+            className="px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400"
+          >
+            Go to My Pet
+          </button>
+        </div>
+      </div>
+    )
+  }
 
-    // 🍖 Hunger Buff
-    if (hunger >= 90) {
-      power += 15;
-      battleLogs.push("🍖 Well Fed: Attack +15");
+  const handleEnterBattle = async () => {
+    try {
+      setBattleState('FIGHTING')
+      await enterBattle()
+      setBattleState('FINISHED')
+    } catch (err) {
+      console.error('Battle error:', err)
+      setBattleState('IDLE')
     }
-
-    // 💖 Happiness Crit (โอกาส 40%)
-    if (happiness >= 90) {
-      const isCrit = Math.random() < 0.4;
-      if (isCrit) {
-        power += 30;
-        battleLogs.push("💖 CRITICAL HIT! Power +30");
-      } else {
-        battleLogs.push("💖 High Spirit: Crit missed...");
-      }
-    }
-
-    // 💤 Energy Debuff
-    if (energy < 30) {
-      power -= 20;
-      battleLogs.push("💤 Exhausted: Power -20");
-    }
-
-    // 🔒 จำกัดเพดานที่ 100 (ตาม Logic เกม)
-    const finalPower = Math.max(0, Math.min(100, power));
-    
-    // ถ้าพลังเกิน 100 จริงๆ ให้ Log บอกว่า Maxed out
-    if (power > 100) battleLogs.push("🔥 POWER OVERFLOW! Capped at 100");
-
-    return { finalPower, battleLogs };
-  };
-
-  // --- 4. เริ่มการต่อสู้ ---
-  const startBattle = () => {
-    setBattleState('FIGHTING');
-    setLogs([]); // เคลียร์ Log เก่า
-
-    // 4.1 คำนวณพลังเรา
-    const { finalPower, battleLogs } = calculateCombatPower();
-    
-    // 4.2 คำนวณพลังศัตรู (ให้สูสีกับเลือดตั้งต้นเรา +/- 15)
-    // สุ่มพลังศัตรูระหว่าง playerHealth-15 ถึง playerHealth+15
-    let enemyBase = playerHealth + (Math.floor(Math.random() * 31) - 15);
-    // จำกัดพลังศัตรูที่ 100 เช่นกัน
-    const finalEnemyPower = Math.max(0, Math.min(100, enemyBase));
-
-    // 4.3 อัปเดต State เพื่อแสดงผล
-    setMyPower(finalPower);
-    setEnemyPower(finalEnemyPower);
-    setLogs(battleLogs);
-
-    // 4.4 รอ Animation 2.5 วินาที แล้วตัดสิน
-    setTimeout(() => {
-      determineWinner(finalPower, finalEnemyPower);
-      setBattleState('FINISHED');
-    }, 2500);
-  };
-
-  // --- 5. ตัดสินแพ้ชนะ & บันทึกผล ---
-  const determineWinner = (myP, enemyP) => {
-    let result = 'DRAW';
-    if (myP > enemyP) result = 'PLAYER';
-    else if (myP < enemyP) result = 'ENEMY';
-
-    setWinner(result);
-
-    // บันทึก History ลง LocalStorage
-    saveHistory(result, myP, enemyP);
-
-    // อัปเดต Global Stats (Leaderboard)
-    if (result === 'PLAYER') {
-      updateLeaderboardStats();
-    }
-  };
-
-  const saveHistory = (result, myP, enemyP) => {
-    const historyItem = {
-      id: Date.now(),
-      date: new Date().toLocaleString(),
-      result: result === 'PLAYER' ? 'WIN' : result === 'ENEMY' ? 'LOSE' : 'DRAW',
-      enemyName: enemyName,
-      myPower: myP,
-      enemyPower: enemyP,
-      reward: result === 'PLAYER' ? '0.05 ETH' : '0'
-    };
-
-    const existingHistory = JSON.parse(localStorage.getItem('battle_history')) || [];
-    // เก็บแค่ 20 รายการล่าสุด
-    const newHistory = [historyItem, ...existingHistory].slice(0, 20);
-    localStorage.setItem('battle_history', JSON.stringify(newHistory));
-  };
-
-  const updateLeaderboardStats = () => {
-    const stats = JSON.parse(localStorage.getItem('tamagotchain_stats')) || { wins: 0, eth: 0 };
-    stats.wins += 1;
-    stats.eth = parseFloat((stats.eth + 0.05).toFixed(4));
-    localStorage.setItem('tamagotchain_stats', JSON.stringify(stats));
-    // Trigger ให้ Sidebar อัปเดตเงินทันที (ถ้ามี)
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  // --- UI Helpers ---
-  const getBarColor = (val) => {
-    if (val >= 80) return 'bg-green-500 shadow-[0_0_10px_#22c55e]';
-    if (val >= 40) return 'bg-yellow-400';
-    return 'bg-red-500';
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black font-mono select-none">
-      
-      {/* Background Image */}
-      <div 
-        className="absolute inset-0 z-0" 
-        style={{ 
-            backgroundImage: "url('/assets/pets/btbg.png')",
-            backgroundSize: 'cover', 
-            backgroundPosition: 'center',
-            filter: 'brightness(40%)'
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: "url('/assets/pets/btbg.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'brightness(40%)'
         }}
       />
 
       <div className="w-full max-w-5xl relative z-10">
-        
         {/* HEADER */}
         <div className="text-center mb-10">
-            <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tracking-widest drop-shadow-sm uppercase">
-                BATTLE ARENA
-            </h1>
-            
-            {/* Buff Indicators (แสดงก่อนสู้) */}
-            <div className="flex gap-4 justify-center mt-4">
-                <div className={`px-3 py-1 rounded text-xs font-bold border ${hunger >= 90 ? 'bg-green-900/50 border-green-400 text-green-400' : 'bg-gray-800/50 border-gray-600 text-gray-500'}`}>
-                    🍖 Hunger {hunger >= 90 ? '≥90 (+15 ATK)' : '<90'}
-                </div>
-                <div className={`px-3 py-1 rounded text-xs font-bold border ${happiness >= 90 ? 'bg-pink-900/50 border-pink-400 text-pink-400' : 'bg-gray-800/50 border-gray-600 text-gray-500'}`}>
-                    💖 Happy {happiness >= 90 ? '≥90 (+Crit)' : '<90'}
-                </div>
-                <div className={`px-3 py-1 rounded text-xs font-bold border ${energy < 30 ? 'bg-red-900/50 border-red-400 text-red-400' : 'bg-blue-900/50 border-blue-400 text-blue-400'}`}>
-                    ⚡ Energy {energy < 30 ? '<30 (-20 Penalty)' : 'Normal'}
-                </div>
+          <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tracking-widest drop-shadow-sm uppercase">
+            BATTLE ARENA
+          </h1>
+
+          {/* Buff Indicators */}
+          <div className="flex gap-4 justify-center mt-4 flex-wrap">
+            <div className={`px-3 py-1 rounded text-xs font-bold border ${currentStats?.hunger >= 90 ? 'bg-green-900/50 border-green-400 text-green-400' : 'bg-gray-800/50 border-gray-600 text-gray-500'}`}>
+              🍖 Hunger {currentStats?.hunger >= 90 ? '≥90 (+5% DMG)' : '<90'}
             </div>
+            <div className={`px-3 py-1 rounded text-xs font-bold border ${currentStats?.happiness >= 90 ? 'bg-pink-900/50 border-pink-400 text-pink-400' : 'bg-gray-800/50 border-gray-600 text-gray-500'}`}>
+              💖 Happy {currentStats?.happiness >= 90 ? '≥90 (+5% CRIT)' : '<90'}
+            </div>
+            <div className={`px-3 py-1 rounded text-xs font-bold border ${currentStats?.energy >= 90 ? 'bg-blue-900/50 border-blue-400 text-blue-400' : currentStats?.energy < 20 ? 'bg-red-900/50 border-red-400 text-red-400' : 'bg-gray-800/50 border-gray-600 text-gray-500'}`}>
+              ⚡ Energy {currentStats?.energy >= 90 ? '≥90 (+10% EVA)' : currentStats?.energy < 20 ? '<20 (Cannot Battle)' : 'Normal'}
+            </div>
+          </div>
+
+          {/* Stats Display */}
+          {playerStats && (
+            <div className="flex gap-4 justify-center mt-4 text-sm">
+              <span className="text-white">Battles: {playerStats.totalBattles}</span>
+              <span className="text-green-400">Wins: {playerStats.totalWins}</span>
+              <span className="text-purple-400">Win Rate: {playerStats.winRate}%</span>
+              <span className="text-yellow-400">Earned: {formatEther(playerStats.totalEarned)} ETH</span>
+            </div>
+          )}
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg text-center text-white">
+            ❌ {error}
+          </div>
+        )}
 
         {/* BATTLE FIELD */}
         <div className="flex flex-col md:flex-row justify-between items-center md:items-end min-h-[350px] px-4 md:px-12 pb-8 relative gap-8">
-            
-            {/* --- PLAYER SIDE --- */}
-            <div className={`
-                flex flex-col items-center transition-all duration-500 order-2 md:order-1 relative
-                ${battleState === 'FIGHTING' ? 'translate-x-0 md:translate-x-[100px] scale-110' : ''} 
-                ${winner === 'ENEMY' ? 'grayscale opacity-50 blur-[2px]' : ''}
-            `}>
-                <div className="mb-4 text-center bg-gray-900/80 p-4 rounded-2xl border-2 border-blue-500/50 backdrop-blur-md shadow-xl w-48">
-                    <div className="text-blue-300 font-bold mb-2 text-lg uppercase truncate">{petName}</div>
-                    
-                    {/* Power Bar */}
-                    <div className="w-full h-3 bg-gray-700 rounded-full mb-2 overflow-hidden border border-gray-600">
-                        <div style={{width: `${battleState === 'IDLE' ? playerHealth : myPower}%`}} className={`h-full transition-all duration-1000 ${getBarColor(battleState === 'IDLE' ? playerHealth : myPower)}`}></div>
-                    </div>
-                    
-                    <div className="text-white text-3xl font-black">
-                        {battleState === 'IDLE' ? playerHealth : myPower}
-                        <span className="text-[10px] font-normal text-gray-400 block tracking-widest uppercase mt-1">Combat Power</span>
-                    </div>
-                </div>
-
-                <div className="relative">
-                    <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
-                    {/* Visual Effect: Ready Aura */}
-                    {battleState === 'IDLE' && <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-blue-500/30 blur-xl rounded-full animate-pulse"></div>}
-                </div>
+          {/* PLAYER SIDE */}
+          <div className={`flex flex-col items-center transition-all duration-500 order-2 md:order-1 relative ${battleState === 'FIGHTING' ? 'translate-x-0 md:translate-x-[100px] scale-110' : ''}`}>
+            <div className="mb-4 text-center bg-gray-900/80 p-4 rounded-2xl border-2 border-blue-500/50 backdrop-blur-md shadow-xl w-48">
+              <div className="text-blue-300 font-bold mb-2 text-lg uppercase truncate">{pet?.name || 'MY PET'}</div>
+              <div className="text-white text-3xl font-black">
+                {combatPower}
+                <span className="text-[10px] font-normal text-gray-400 block tracking-widest uppercase mt-1">Combat Power</span>
+              </div>
             </div>
-
-            {/* --- VS / RESULT CENTER --- */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-full text-center pointer-events-none">
-                {battleState === 'FIGHTING' ? (
-                     <div className="text-8xl animate-ping opacity-90 drop-shadow-[0_0_20px_rgba(255,255,0,0.8)]">⚔️</div>
-                ) : battleState === 'FINISHED' ? (
-                    <div className="flex flex-col items-center animate-bounce-in">
-                        <div className={`text-6xl md:text-8xl font-black drop-shadow-[0_5px_5px_rgba(0,0,0,1)] 
-                            ${winner === 'PLAYER' ? 'text-transparent bg-clip-text bg-gradient-to-b from-green-300 to-green-600' : 
-                              winner === 'ENEMY' ? 'text-red-600' : 'text-gray-300'}`}>
-                            {winner === 'PLAYER' ? 'VICTORY!' : winner === 'ENEMY' ? 'DEFEATED' : 'DRAW'}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-7xl font-black text-white/10 italic pr-4">VS</div>
-                )}
+            <div className="relative">
+              <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
+              {battleState === 'IDLE' && <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-blue-500/30 blur-xl rounded-full animate-pulse"></div>}
             </div>
+          </div>
 
-            {/* --- ENEMY SIDE --- */}
-            <div className={`
-                flex flex-col items-center transition-all duration-500 order-1 md:order-3 relative
-                ${battleState === 'FIGHTING' ? 'translate-x-0 md:-translate-x-[100px] scale-110' : ''}
-                ${winner === 'PLAYER' ? 'grayscale opacity-50 blur-[2px]' : ''}
-            `}>
-                <div className="mb-4 text-center bg-gray-900/80 p-4 rounded-2xl border-2 border-red-500/50 backdrop-blur-md shadow-xl w-48">
-                    <div className="text-red-300 font-bold mb-2 text-lg uppercase truncate">{enemyName}</div>
-                    
-                    {/* Enemy Power Bar */}
-                     <div className="w-full h-3 bg-gray-700 rounded-full mb-2 overflow-hidden border border-gray-600">
-                        <div style={{width: `${battleState === 'IDLE' ? 100 : enemyPower}%`}} className="h-full bg-red-500 transition-all duration-1000"></div>
-                    </div>
+          {/* VS CENTER */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-full text-center pointer-events-none">
+            {battleState === 'FIGHTING' ? (
+              <div className="text-8xl animate-ping opacity-90 drop-shadow-[0_0_20px_rgba(255,255,0,0.8)]">⚔️</div>
+            ) : (
+              <div className="text-7xl font-black text-white/10 italic">VS</div>
+            )}
+          </div>
 
-                    <div className="text-white text-3xl font-black">
-                        {battleState === 'IDLE' ? '???' : enemyPower}
-                        <span className="text-[10px] font-normal text-gray-400 block tracking-widest uppercase mt-1">Power</span>
-                    </div>
-                </div>
-
-                <div className="relative transform scale-x-[-1] filter hue-rotate-[280deg] saturate-50">
-                    <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
-                    {battleState === 'IDLE' && <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-red-500/30 blur-xl rounded-full animate-pulse"></div>}
-                </div>
+          {/* ENEMY SIDE */}
+          <div className={`flex flex-col items-center transition-all duration-500 order-1 md:order-3 relative ${battleState === 'FIGHTING' ? 'translate-x-0 md:-translate-x-[100px] scale-110' : ''}`}>
+            <div className="mb-4 text-center bg-gray-900/80 p-4 rounded-2xl border-2 border-red-500/50 backdrop-blur-md shadow-xl w-48">
+              <div className="text-red-300 font-bold mb-2 text-lg uppercase truncate">OPPONENT</div>
+              <div className="text-white text-3xl font-black">
+                ???
+                <span className="text-[10px] font-normal text-gray-400 block tracking-widest uppercase mt-1">Power</span>
+              </div>
             </div>
-
+            <div className="relative transform scale-x-[-1] filter hue-rotate-[280deg] saturate-50">
+              <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
+              {battleState === 'IDLE' && <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-red-500/30 blur-xl rounded-full animate-pulse"></div>}
+            </div>
+          </div>
         </div>
 
-        {/* --- CONTROLS / LOGS AREA --- */}
+        {/* CONTROLS */}
         <div className="flex flex-col items-center justify-center mt-6 min-h-[120px]">
-            
-            {/* Logs: แสดงเฉพาะตอนสู้หรือจบแล้ว */}
-            {battleState !== 'IDLE' && (
-                <div className="mb-6 space-y-1 text-center bg-black/40 p-4 rounded-xl border border-white/10 w-full max-w-md backdrop-blur-sm">
-                    {logs.map((l, i) => (
-                        <div key={i} className="text-xs md:text-sm font-bold text-yellow-300 animate-fade-in-up">
-                            {l}
-                        </div>
-                    ))}
-                    {battleState === 'FINISHED' && winner === 'PLAYER' && (
-                        <div className="text-green-400 font-bold mt-2 pt-2 border-t border-white/20">
-                            Reward Received: +0.05 ETH 💰
-                        </div>
-                    )}
+          {isWaitingTx && (
+            <div className="mb-6 text-center bg-black/40 p-4 rounded-xl border border-white/10 w-full max-w-md backdrop-blur-sm">
+              <div className="text-yellow-300 font-bold animate-pulse">⏳ Waiting for battle result...</div>
+            </div>
+          )}
+
+          {battleState === 'IDLE' && (
+            <div className="text-center">
+              {!canBattle ? (
+                <div className="mb-6">
+                  <div className="text-lg mb-2 text-white">⏳ Cooldown Active</div>
+                  <div className="text-3xl font-bold text-yellow-400">
+                    {formatTimeRemaining(battleCooldown)}
+                  </div>
                 </div>
-            )}
+              ) : (
+                <div className="mb-6">
+                  <div className="text-sm text-white mb-2">Entry Fee: 0.01 ETH | Winner Gets: 0.018 ETH</div>
+                </div>
+              )}
 
-            {/* Button: FIGHT */}
-            {battleState === 'IDLE' && (
-                <button 
-                    onClick={startBattle}
-                    className="px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 text-white font-black text-2xl rounded-2xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 transition-all shadow-[0_0_30px_rgba(220,38,38,0.5)] hover:scale-105 hover:brightness-110"
-                >
-                    🔥 FIGHT NOW!
-                </button>
-            )}
+              <button
+                onClick={handleEnterBattle}
+                disabled={!canBattle || isLoading || isWaitingTx || currentStats?.energy < 20}
+                className="px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 text-white font-black text-2xl rounded-2xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 transition-all shadow-[0_0_30px_rgba(220,38,38,0.5)] hover:scale-105 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Entering...' : isWaitingTx ? 'Battling...' : '🔥 FIGHT NOW!'}
+              </button>
 
-            {/* Buttons: Result Actions */}
-            {battleState === 'FINISHED' && (
-                 <div className="flex gap-4">
-                    <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 shadow-lg">
-                        🔄 Rematch
-                    </button>
-                    <button onClick={() => navigate('/my-pet')} className="px-6 py-3 bg-gray-600 text-white font-bold rounded-xl hover:bg-gray-500 border-b-4 border-gray-800 active:border-b-0 active:translate-y-1 shadow-lg">
-                        🏠 Home
-                    </button>
-                    <button onClick={() => navigate('/battle-history')} className="px-6 py-3 bg-yellow-600 text-white font-bold rounded-xl hover:bg-yellow-500 border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 shadow-lg">
-                        📜 History
-                    </button>
-                 </div>
-            )}
+              {currentStats?.energy < 20 && (
+                <div className="mt-4 text-sm text-red-400">
+                  ⚠️ Not enough energy (minimum 20 required)
+                </div>
+              )}
+            </div>
+          )}
+
+          {battleState === 'FINISHED' && (
+            <div className="flex gap-4">
+              <button onClick={() => setBattleState('IDLE')} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 shadow-lg">
+                🔄 Battle Again
+              </button>
+              <button onClick={() => navigate('/my-pet')} className="px-6 py-3 bg-gray-600 text-white font-bold rounded-xl hover:bg-gray-500 border-b-4 border-gray-800 active:border-b-0 active:translate-y-1 shadow-lg">
+                🏠 Home
+              </button>
+              <button onClick={() => navigate('/battle-history')} className="px-6 py-3 bg-yellow-600 text-white font-bold rounded-xl hover:bg-yellow-500 border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 shadow-lg">
+                📜 History
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* History Toggle */}
+        <div className="text-center mt-8">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="px-4 py-2 bg-gray-800/80 text-white rounded-lg hover:bg-gray-700 border border-gray-600"
+          >
+            {showHistory ? 'Hide Recent Battles' : 'Show Recent Battles'}
+          </button>
+        </div>
+
+        {/* Battle History */}
+        {showHistory && battleHistory.length > 0 && (
+          <div className="mt-6 bg-black/60 rounded-xl p-6 border-2 border-yellow-600">
+            <h2 className="text-xl font-bold mb-4 text-yellow-400">Recent Battles</h2>
+            <div className="space-y-3">
+              {battleHistory.slice(0, 5).map((battle, index) => {
+                const result = getBattleResult(battle)
+                return (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-lg ${result.won ? 'bg-green-900/20 border border-green-500' : 'bg-red-900/20 border border-red-500'}`}
+                  >
+                    <div className="flex justify-between items-center text-white">
+                      <div>
+                        <span className="font-mono text-sm">{formatAddress(result.opponent)}</span>
+                        <span className="text-xs opacity-60 ml-2">CP: {result.opponentCP}</span>
+                      </div>
+                      <div className={`font-bold ${result.won ? 'text-green-400' : 'text-red-400'}`}>
+                        {result.won ? '🏆 WIN' : '💀 LOSE'}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">Your CP: {result.playerCP}</div>
+                        {result.won && <div className="text-xs text-green-400">+{result.reward} ETH</div>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Battle;
+export default Battle
