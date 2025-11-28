@@ -169,7 +169,10 @@ const MyPet = () => {
 
                 {/* === FOOTER: ปุ่มเมนูด้านล่าง === */}
                 <div className="flex justify-center gap-8 mt-8 pt-4 border-t-2 border-gray-200">
-                    <button onClick={() => navigate('/battle')} className="flex flex-col items-center group transform hover:scale-110 transition-transform">
+                    <button 
+                        onClick={() => navigate('/battle', { state: { playerHealth: health } })} 
+                        className="flex flex-col items-center group transform hover:scale-110 transition-transform"
+                    >
                         <div className="w-16 h-16 rounded-full bg-red-600 border-4 border-black flex items-center justify-center group-hover:bg-red-500 text-white text-2xl">⚔️</div>
                         <span className="text-xs font-bold mt-2">BATTLE</span>
                     </button>
