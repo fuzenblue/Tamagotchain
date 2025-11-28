@@ -4,10 +4,12 @@ import { NavLink } from 'react-router-dom';
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
 
+  // 👇 เพิ่มเมนู HISTORY ตรงนี้
   const menuItems = [
     { path: '/', name: 'HOME', icon: '🏠' },
     { path: '/my-pet', name: 'MY PET', icon: '🐲' },
     { path: '/battle', name: 'BATTLE', icon: '⚔️' },
+    { path: '/battle-history', name: 'HISTORY', icon: '📜' }, // ✅ เพิ่มปุ่มนี้
     { path: '/leaderboard', name: 'RANK', icon: '🏆' },
   ];
 
@@ -16,7 +18,7 @@ const Sidebar = () => {
       {/* ปุ่มเมนูสำหรับมือถือ */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-2 bg-yellow-500 rounded-lg border-2 border-black shadow-lg md:hidden"
+        className="fixed top-4 left-4 z-50 p-2 bg-yellow-500 rounded-lg border-2 border-black shadow-lg md:hidden hover:bg-yellow-400 transition-colors"
       >
         {isOpen ? '❌' : '🍔'}
       </button>
@@ -25,30 +27,31 @@ const Sidebar = () => {
       <div className={`
         fixed top-0 left-0 h-screen bg-gray-800 border-r-4 border-gray-900 w-64 transition-transform duration-300 z-40
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:relative flex flex-col
+        md:translate-x-0 md:relative flex flex-col shadow-2xl
       `}>
         {/* Logo */}
         <div className="p-6 border-b-4 border-gray-900 bg-gray-700">
-          <h1 className="text-xl font-black text-yellow-400 tracking-widest text-center">
+          <h1 className="text-xl font-black text-yellow-400 tracking-widest text-center drop-shadow-md">
             TAMAGOTCHAIN
           </h1>
         </div>
 
         {/* รายการเมนู */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-3 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={() => setIsOpen(false)} // ปิดเมนูอัตโนมัติเมื่อกดในมือถือ
               className={({ isActive }) => `
                 flex items-center gap-4 p-4 rounded-xl transition-all font-bold tracking-wider font-mono
                 ${isActive 
-                  ? 'bg-yellow-500 text-black border-b-4 border-yellow-700 translate-y-0' 
-                  : 'bg-gray-700 text-gray-300 border-b-4 border-gray-900 hover:bg-gray-600 hover:translate-y-1 active:border-b-0 active:translate-y-2'
+                  ? 'bg-yellow-500 text-black border-b-4 border-yellow-700 translate-y-0 shadow-inner' 
+                  : 'bg-gray-700 text-gray-300 border-b-4 border-gray-900 hover:bg-gray-600 hover:text-white hover:border-gray-500 hover:-translate-y-1 active:border-b-0 active:translate-y-0 transition-transform duration-100'
                 }
               `}
             >
-              <span className="text-2xl">{item.icon}</span>
+              <span className="text-2xl filter drop-shadow-sm">{item.icon}</span>
               <span>{item.name}</span>
             </NavLink>
           ))}
@@ -56,8 +59,8 @@ const Sidebar = () => {
 
         {/* Footer */}
         <div className="p-4 bg-gray-900 border-t-4 border-black text-center">
-          <div className="text-xs text-gray-500 mb-2">CONNECTED</div>
-          <div className="text-xs font-mono text-green-400 truncate bg-gray-800 p-2 rounded border border-gray-600">
+          <div className="text-[10px] text-gray-500 mb-2 font-bold tracking-widest">WALLET CONNECTED</div>
+          <div className="text-xs font-mono text-green-400 truncate bg-gray-800 p-2 rounded border border-gray-600 shadow-inner">
             0x123...ABCD
           </div>
         </div>
