@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import PetDisplay from '../components/PetDisplay'; 
+import PetDisplay from '../components/PetDisplay';
 
 
 const Battle = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- 1. รับค่าเลือดมาจากหน้า MyPet ---
-  const currentHp = location.state?.playerHealth || 100;
+  // --- 1. รับค่า Stats ---
+  const { 
+    playerHealth = 100, 
+    hunger = 80, 
+    happiness = 80, 
+    energy = 80 
+  } = location.state || {};
 
+<<<<<<< HEAD
   // พลังเรา = เลือดปัจจุบัน
   const [myEnergy] = useState(currentHp); 
   
@@ -21,18 +27,60 @@ const Battle = () => {
 
       
       return Math.max(0, Math.min(100, enemyPower)); 
+=======
+  // --- 2. คำนวณพลังต่อสู้ (แก้ให้ไม่เกิน 100) ---
+  const calculateCombatPower = (hp, hg, hpn, en) => {
+    let power = hp; 
+    
+    // Logic: Buffs
+    const attackBonus = hg >= 80 ? 15 : 0;      
+    const critBonus = hpn >= 90 ? (Math.random() < 0.3 ? 30 : 0) : 0; 
+    const dodgePenalty = en < 30 ? -20 : 0;      
+
+    // คำนวณผลรวม
+    const totalPower = Math.floor(power + attackBonus + critBonus + dodgePenalty);
+
+    // 👇👇👇 แก้ไขจุดที่ 1: ใส่ Math.min(100, ...) เพื่อไม่ให้เกิน 100 👇👇👇
+    return Math.max(0, Math.min(100, totalPower));
+  };
+
+  const [myStats] = useState({ health: playerHealth, hunger, happiness, energy });
+  const [myPower, setMyPower] = useState(0); 
+
+  // --- แก้ไขจุดที่ 2: ปรับพลังศัตรูให้ไม่เกิน 100 เช่นกัน ---
+  const [enemyPower] = useState(() => {
+    // ฐานพลังศัตรู (ลดความโหดลงหน่อยเพื่อให้สมดุลกับเพดาน 100)
+    const baseEnemy = playerHealth + (Math.floor(Math.random() * 21) - 10); // +/- 10 พอ
+    const randomBonus = Math.floor(Math.random() * 15); 
+    
+    // 👇 Limit ที่ 100
+    return Math.max(0, Math.min(100, baseEnemy + randomBonus)); 
+>>>>>>> 2d40926547477ee389b3af8a8d9a94215f96bab3
   });
 
-  const [battleState, setBattleState] = useState('IDLE'); // IDLE, FIGHTING, FINISHED
-  const [winner, setWinner] = useState(null); // PLAYER, ENEMY, DRAW
+  const [battleState, setBattleState] = useState('IDLE');
+  const [winner, setWinner] = useState(null);
+  const [log, setLog] = useState([]); 
 
 
   // --- 3. ฟังก์ชันเริ่มต่อสู้ ---
   const startBattle = () => {
     setBattleState('FIGHTING');
+    setLog([]); 
 
-    // รอ Animation 2.5 วินาที
+    const finalMyPower = calculateCombatPower(myStats.health, myStats.hunger, myStats.happiness, myStats.energy);
+    setMyPower(finalMyPower);
+
+    const battleLogs = [];
+    // ปรับข้อความ Log ให้สื่อความหมายว่าพลังตันที่ 100
+    if (finalMyPower === 100) battleLogs.push("🔥 MAX POWER REACHED (100)!");
+    if (myStats.hunger >= 80) battleLogs.push("🍖 Fed Well: Power Boosted");
+    if (myStats.happiness >= 90) battleLogs.push("💖 Lucky: Critical Hit Chance");
+    if (myStats.energy < 30) battleLogs.push("💤 Tired: Power Reduced");
+    setLog(battleLogs);
+
     setTimeout(() => {
+<<<<<<< HEAD
         let result; // <--- FIX 1: ประกาศตัวแปร result ก่อนใช้
         const currentStats = JSON.parse(localStorage.getItem('tamagotchain_stats')) || { wins: 0, eth: 0 };
         let netEthChange = 0; // ตัวแปรใหม่: ติดตามการเปลี่ยนแปลง ETH สุทธิ (กำไร/ขาดทุน)
@@ -90,11 +138,32 @@ const Battle = () => {
         localStorage.setItem('battle_history', JSON.stringify(history));
     
         setBattleState('FINISHED'); // โค้ดจะรันถึงบรรทัดนี้ได้แน่นอน
+=======
+      if (finalMyPower > enemyPower) {
+        setWinner('PLAYER');
+        saveWinRecord();
+      } else if (finalMyPower < enemyPower) {
+        setWinner('ENEMY');
+      } else {
+        setWinner('DRAW');
+      }
+      setBattleState('FINISHED');
+>>>>>>> 2d40926547477ee389b3af8a8d9a94215f96bab3
     }, 2500);
 };
 
+  const saveWinRecord = () => {
+    const currentStats = JSON.parse(localStorage.getItem('tamagotchain_stats')) || { wins: 0, eth: 0 };
+    const newStats = {
+        wins: currentStats.wins + 1,
+        eth: parseFloat(currentStats.eth) + 0.05
+    };
+    localStorage.setItem('tamagotchain_stats', JSON.stringify(newStats));
+    window.dispatchEvent(new Event('storage'));
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black font-mono select-none">
       
       {/* Background */}
       <div 
@@ -107,14 +176,14 @@ const Battle = () => {
         }}
       />
 
-      {/* Main Container */}
       <div className="w-full max-w-5xl relative z-10">
         
         {/* Header */}
-        <div className="text-center mb-12">
-            <h1 className="text-5xl font-black text-yellow-500 tracking-widest drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] animate-pulse">
-                ⚔️ BATTLE ARENA ⚔️
+        <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-black text-yellow-500 tracking-widest drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
+                ⚔️ BATTLE ARENA
             </h1>
+<<<<<<< HEAD
             <p className="text-white mt-2 text-lg font-mono bg-black/50 inline-block px-4 rounded">
                 Fair Fight Mode (Max 100)
             </p>
@@ -128,97 +197,116 @@ const Battle = () => {
                 📜 Battle History
             </button>
             {/* สิ้นสุดปุ่ม Battle History */}
+=======
+            <div className="flex gap-4 justify-center mt-2 text-xs md:text-sm text-gray-300">
+                <span className={myStats.hunger >= 80 ? "text-green-400 font-bold" : ""}>🍖 Hunger &gt; 80 = Buff</span>
+                <span className={myStats.happiness >= 90 ? "text-pink-400 font-bold" : ""}>💖 Happy &gt; 90 = Crit</span>
+            </div>
+>>>>>>> 2d40926547477ee389b3af8a8d9a94215f96bab3
         </div>
 
         {/* Battle Field */}
-        <div className="flex justify-between items-end min-h-[400px] px-8 pb-12 relative">
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end min-h-[400px] px-4 md:px-8 pb-12 relative gap-8">
             
-            {/* --- PLAYER (ฝั่งซ้าย) --- */}
+            {/* --- PLAYER --- */}
             <div className={`
-                flex flex-col items-center transition-all duration-500
-                ${battleState === 'FIGHTING' ? 'translate-x-[150px] scale-125' : ''} 
-                ${winner === 'ENEMY' ? 'grayscale opacity-50' : ''}
+                flex flex-col items-center transition-all duration-500 order-2 md:order-1
+                ${battleState === 'FIGHTING' ? 'translate-x-0 md:translate-x-[150px] scale-110' : ''} 
+                ${winner === 'ENEMY' ? 'grayscale opacity-50 blur-sm' : ''}
             `}>
-                <div className="mb-4 text-center">
+                <div className="mb-4 text-center bg-black/60 p-3 rounded-xl border border-blue-500/30 backdrop-blur-sm">
                     <div className="text-blue-300 font-bold mb-1 text-xl">YOU</div>
-                    <div className="w-32 h-4 bg-gray-700 rounded-full border-2 border-white">
-                        <div style={{width: `${myEnergy}%`}} className="h-full bg-blue-500 rounded-full shadow-[0_0_10px_#3b82f6]"></div>
+                    
+                    {/* Health Bar (แสดงผลตาม myPower ที่คำนวณแล้ว) */}
+                    <div className="w-32 h-2 bg-gray-700 rounded-full mb-1 overflow-hidden border border-gray-600">
+                        {/* ใช้ myPower แทน myStats.health เพื่อให้เห็นผลของการบัฟในการต่อสู้ */}
+                        <div style={{width: `${battleState === 'IDLE' ? myStats.health : myPower}%`}} className="h-full bg-green-500 transition-all duration-1000"></div>
                     </div>
-                    <div className="text-white font-mono text-sm mt-1">Power: {myEnergy}/100</div>
+                    
+                    <div className="text-white text-2xl font-black mt-2">
+                        {battleState === 'IDLE' ? 'Ready?' : myPower} 
+                        <span className="text-xs font-normal text-gray-400 block">Combat Power</span>
+                    </div>
                 </div>
 
                 <div className="relative">
-                    <PetDisplay status="WALK" size={200} />
-                    {winner === 'PLAYER' && <div className="absolute -top-10 left-10 text-6xl animate-bounce">👑</div>}
+                    <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
+                    {battleState === 'FIGHTING' && myStats.hunger >= 80 && (
+                        <div className="absolute -top-5 right-0 text-2xl animate-bounce">🔥</div>
+                    )}
                 </div>
             </div>
 
-            {/* --- EFFECT --- */}
-            {battleState === 'FIGHTING' && (
-                <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
-                    <div className="text-9xl animate-ping opacity-80">💥</div>
-                    <div className="absolute text-8xl font-black text-yellow-500 -rotate-12 animate-bounce">POW!</div>
-                </div>
-            )}
-
-            {/* --- ENEMY (ฝั่งขวา) --- */}
-            <div className={`
-                flex flex-col items-center transition-all duration-500
-                ${battleState === 'FIGHTING' ? '-translate-x-[150px] scale-125' : ''}
-                ${winner === 'PLAYER' ? 'grayscale opacity-50' : ''}
-            `}>
-                <div className="mb-4 text-center">
-                    <div className="text-red-300 font-bold mb-1 text-xl">ENEMY</div>
-                    <div className="w-32 h-4 bg-gray-700 rounded-full border-2 border-white">
-                        <div style={{width: `${enemyEnergy}%`}} className="h-full bg-red-600 rounded-full shadow-[0_0_10px_#dc2626]"></div>
+            {/* --- VS / LOGS --- */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-full max-w-xs text-center pointer-events-none">
+                {battleState === 'FIGHTING' ? (
+                     <div className="text-9xl animate-ping opacity-80">💥</div>
+                ) : battleState === 'FINISHED' ? (
+                    <div className="text-6xl font-black text-yellow-500 drop-shadow-xl animate-bounce">
+                        {winner === 'PLAYER' ? 'VICTORY' : winner === 'ENEMY' ? 'DEFEAT' : 'DRAW'}
                     </div>
-                    <div className="text-white font-mono text-sm mt-1">Power: {enemyEnergy}/100</div>
+                ) : (
+                    <div className="text-6xl font-black text-white/20">VS</div>
+                )}
+            </div>
+
+            {/* --- ENEMY --- */}
+            <div className={`
+                flex flex-col items-center transition-all duration-500 order-1 md:order-3
+                ${battleState === 'FIGHTING' ? 'translate-x-0 md:-translate-x-[150px] scale-110' : ''}
+                ${winner === 'PLAYER' ? 'grayscale opacity-50 blur-sm' : ''}
+            `}>
+                <div className="mb-4 text-center bg-black/60 p-3 rounded-xl border border-red-500/30 backdrop-blur-sm">
+                    <div className="text-red-300 font-bold mb-1 text-xl">RIVAL</div>
+                    
+                    {/* Enemy Bar (เพิ่มหลอดเลือดศัตรูให้ดูสมจริง) */}
+                     <div className="w-32 h-2 bg-gray-700 rounded-full mb-1 overflow-hidden border border-gray-600">
+                        <div style={{width: `${battleState === 'IDLE' ? 100 : enemyPower}%`}} className="h-full bg-red-500 transition-all duration-1000"></div>
+                    </div>
+
+                    <div className="text-white text-2xl font-black mt-2">
+                        {battleState === 'IDLE' ? '???' : enemyPower}
+                        <span className="text-xs font-normal text-gray-400 block">Power</span>
+                    </div>
                 </div>
 
                 <div className="relative transform scale-x-[-1] filter hue-rotate-90">
-                    <PetDisplay status="WALK" size={200} />
-                    {winner === 'ENEMY' && <div className="absolute -top-10 left-10 text-6xl animate-bounce transform scale-x-[-1]">👑</div>}
+                    <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
                 </div>
             </div>
 
         </div>
 
-        {/* --- CONTROLS / RESULT --- */}
-        <div className="flex justify-center mt-8 h-24">
-            
+        {/* --- CONTROLS --- */}
+        <div className="flex flex-col items-center justify-center mt-4 min-h-[100px]">
+            {battleState !== 'IDLE' && (
+                <div className="mb-4 space-y-1 text-center h-16">
+                    {log.map((l, i) => (
+                        <div key={i} className="text-sm font-bold text-yellow-300 animate-fade-in-up">
+                            {l}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {battleState === 'IDLE' && (
                 <button 
                     onClick={startBattle}
-                    className="px-12 py-4 bg-red-600 hover:bg-red-500 text-white font-black text-2xl rounded-2xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 transition-all shadow-2xl hover:scale-105"
+                    className="px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 text-white font-black text-2xl rounded-2xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 transition-all shadow-lg hover:shadow-red-500/50 hover:scale-105"
                 >
                     🔥 FIGHT!
                 </button>
             )}
 
             {battleState === 'FINISHED' && (
-                <div className="bg-gray-900/90 p-8 rounded-2xl border-4 border-yellow-500 text-center animate-bounce-slow backdrop-blur-sm fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 shadow-2xl">
-                    <h2 className={`text-5xl font-black mb-2 uppercase 
-                        ${winner === 'PLAYER' ? 'text-green-400' : winner === 'ENEMY' ? 'text-red-500' : 'text-gray-300'}`}>
-                        {winner === 'PLAYER' ? '🏆 YOU WIN!' : winner === 'ENEMY' ? '💀 YOU LOSE!' : '🤝 DRAW!'}
-                    </h2>
-                    
-                    <p className="text-yellow-400 font-bold text-xl mb-6">
-                         {winner === 'PLAYER' ? 'Reward: +0.05 ETH & +1 Win' : 
-                          winner === 'DRAW' ? 'Matched Power! No Winner.' : 'Better luck next time!'}
-                    </p>
-                    
-                    <div className="flex gap-4 justify-center">
-                        <button onClick={() => window.location.reload()} className="px-6 py-2 bg-blue-500 text-white font-bold rounded hover:bg-blue-400">
-                            Rematch
-                        </button>
-                        <button onClick={() => navigate('/my-pet')} className="px-6 py-2 bg-gray-600 text-white font-bold rounded hover:bg-gray-500">
-                            Back Home
-                        </button>
-                        <button onClick={() => navigate('/leaderboard')} className="px-6 py-2 bg-yellow-500 text-black font-bold rounded hover:bg-yellow-400">
-                            Check Rank 🏆
-                        </button>
-                    </div>
-                </div>
+                 <div className="flex gap-4">
+                    <button onClick={() => window.location.reload()} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-500 border-b-4 border-blue-800 active:border-b-0 active:translate-y-1">
+                        Rematch
+                    </button>
+                    <button onClick={() => navigate('/my-pet')} className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-500 border-b-4 border-gray-800 active:border-b-0 active:translate-y-1">
+                        Back Home
+                    </button>
+                 </div>
             )}
         </div>
 
