@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PetDisplay from '../components/PetDisplay'; 
 
+
 const Battle = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,16 +15,17 @@ const Battle = () => {
   
   // --- 2. คำนวณพลังศัตรู (แบบสุ่มแฟร์ๆ Max 100) ---
   const [enemyEnergy] = useState(() => {
-      // สุ่มพลังบวกลบ 20 (เช่น เรา 80 ศัตรูอาจจะ 60-100)
+      
       let randomDiff = Math.floor(Math.random() * 41) - 20; 
       let enemyPower = currentHp + randomDiff;
 
-      // 👇👇👇 แก้ไขตรงนี้: ตัดระบบโกงออก ให้ตันที่ 100 เท่ากัน 👇👇👇
+      
       return Math.max(0, Math.min(100, enemyPower)); 
   });
 
   const [battleState, setBattleState] = useState('IDLE'); // IDLE, FIGHTING, FINISHED
   const [winner, setWinner] = useState(null); // PLAYER, ENEMY, DRAW
+
 
   // --- 3. ฟังก์ชันเริ่มต่อสู้ ---
   const startBattle = () => {
@@ -31,27 +33,65 @@ const Battle = () => {
 
     // รอ Animation 2.5 วินาที
     setTimeout(() => {
-      // ตัดสินผล (แบบแฟร์ๆ มีแพ้ ชนะ เสมอ)
-      if (myEnergy > enemyEnergy) {
-        setWinner('PLAYER');
-        
-        // บันทึกสถิติชนะ
+        let result; // <--- FIX 1: ประกาศตัวแปร result ก่อนใช้
         const currentStats = JSON.parse(localStorage.getItem('tamagotchain_stats')) || { wins: 0, eth: 0 };
-        const newStats = {
-            wins: currentStats.wins + 1,
-            eth: parseFloat(currentStats.eth) + 0.05
-        };
-        localStorage.setItem('tamagotchain_stats', JSON.stringify(newStats));
-        window.dispatchEvent(new Event('storage'));
+        let netEthChange = 0; // ตัวแปรใหม่: ติดตามการเปลี่ยนแปลง ETH สุทธิ (กำไร/ขาดทุน)
 
-      } else if (myEnergy < enemyEnergy) {
-        setWinner('ENEMY');
-      } else {
-        setWinner('DRAW'); // ถ้าเท่ากันก็เสมอ
-      }
-      setBattleState('FINISHED');
+        // ตัดสินผล
+        if (myEnergy > enemyEnergy) {
+            setWinner('PLAYER');
+            result = 'WIN'; 
+            netEthChange = 0.018; // (Win: 0.018 ETH) 
+            
+            // บันทึกสถิติชนะและ ETH
+            const newStats = {
+                wins: currentStats.wins + 1,
+                eth: parseFloat(currentStats.eth) + netEthChange // Apply net change
+            };
+            localStorage.setItem('tamagotchain_stats', JSON.stringify(newStats));
+            window.dispatchEvent(new Event('storage'));
+
+        } else if (myEnergy < enemyEnergy) {
+            setWinner('ENEMY');
+            result = 'LOSE'; 
+            netEthChange = -0.01; // (Lose: -0.01 ETH) 
+
+            // บันทึกสถิติแพ้ (หัก ETH)
+            const newStats = {
+                wins: currentStats.wins,
+                eth: parseFloat(currentStats.eth) + netEthChange // Apply net change (ติดลบ)
+            };
+            localStorage.setItem('tamagotchain_stats', JSON.stringify(newStats));
+            window.dispatchEvent(new Event('storage'));
+
+        } else {
+            setWinner('DRAW'); 
+            result = 'DRAW'; 
+            netEthChange = 0; // Assume Draw means no change in ETH
+
+            // บันทึกสถิติ Draw 
+            const newStats = {
+                wins: currentStats.wins,
+                eth: parseFloat(currentStats.eth) + netEthChange
+            };
+            localStorage.setItem('tamagotchain_stats', JSON.stringify(newStats));
+            window.dispatchEvent(new Event('storage'));
+        }
+
+        // --- บันทึกประวัติการต่อสู้ ---
+        const history = JSON.parse(localStorage.getItem('battle_history')) || [];
+        history.unshift({
+            result, // ใช้ result ที่ถูกกำหนดค่าแล้ว
+            myPower: myEnergy,
+            enemyPower: enemyEnergy,
+            netEthChange: netEthChange, // <--- FIX 3: บันทึกการเปลี่ยนแปลง ETH สำหรับ Earnings Dashboard
+            timestamp: new Date().toISOString()
+        });
+        localStorage.setItem('battle_history', JSON.stringify(history));
+    
+        setBattleState('FINISHED'); // โค้ดจะรันถึงบรรทัดนี้ได้แน่นอน
     }, 2500);
-  };
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
@@ -78,6 +118,16 @@ const Battle = () => {
             <p className="text-white mt-2 text-lg font-mono bg-black/50 inline-block px-4 rounded">
                 Fair Fight Mode (Max 100)
             </p>
+            {/* ปุ่ม Battle History */}
+            <button 
+                
+                onClick={() => navigate('/battle-history')} 
+                className="mt-4 px-6 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-lg transition-colors border-b-2 border-gray-700"
+                disabled={battleState === 'FIGHTING'} // ป้องกันการกดระหว่าง Animation ต่อสู้
+            >
+                📜 Battle History
+            </button>
+            {/* สิ้นสุดปุ่ม Battle History */}
         </div>
 
         {/* Battle Field */}
