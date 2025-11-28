@@ -6,8 +6,7 @@ const Battle = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- 1. รับค่า Stats ทั้งหมดจากหน้า MyPet ---
-  // ถ้าไม่มีค่าส่งมา ให้ใช้ค่า Default 
+  // --- 1. รับค่า Stats ---
   const { 
     playerHealth = 100, 
     hunger = 80, 
@@ -15,54 +14,56 @@ const Battle = () => {
     energy = 80 
   } = location.state || {};
 
-  // --- 2. คำนวณพลังต่อสู้ (Combat Power Calculation) ---
+  // --- 2. คำนวณพลังต่อสู้ (แก้ให้ไม่เกิน 100) ---
   const calculateCombatPower = (hp, hg, hpn, en) => {
-    let power = hp; // เริ่มต้นที่เลือด
+    let power = hp; 
     
     // Logic: Buffs
-    const attackBonus = hg >= 80 ? 15 : 0;       // อิ่มแล้วตีแรง +15
-    const critBonus = hpn >= 90 ? (Math.random() < 0.3 ? 30 : 0) : 0; // สุขมาก มีโอกาส 30% ที่จะ +30 (Critical)
-    const dodgePenalty = en < 30 ? -20 : 0;      // เหนื่อยเกินไป พลังลด -20
+    const attackBonus = hg >= 80 ? 15 : 0;      
+    const critBonus = hpn >= 90 ? (Math.random() < 0.3 ? 30 : 0) : 0; 
+    const dodgePenalty = en < 30 ? -20 : 0;      
 
-    return Math.floor(power + attackBonus + critBonus + dodgePenalty);
+    // คำนวณผลรวม
+    const totalPower = Math.floor(power + attackBonus + critBonus + dodgePenalty);
+
+    // 👇👇👇 แก้ไขจุดที่ 1: ใส่ Math.min(100, ...) เพื่อไม่ให้เกิน 100 👇👇👇
+    return Math.max(0, Math.min(100, totalPower));
   };
 
-  // คำนวณพลังของเรา
   const [myStats] = useState({ health: playerHealth, hunger, happiness, energy });
-  const [myPower, setMyPower] = useState(0); // จะคำนวณตอนเริ่มสู้ หรือคำนวณเลยก็ได้
+  const [myPower, setMyPower] = useState(0); 
 
-  // คำนวณพลังศัตรู (Random ให้ใกล้เคียงเรา แต่มีความผันผวน)
+  // --- แก้ไขจุดที่ 2: ปรับพลังศัตรูให้ไม่เกิน 100 เช่นกัน ---
   const [enemyPower] = useState(() => {
-    // ฐานพลังศัตรูอิงจากเลือดเรา +/- 15
-    const baseEnemy = playerHealth + (Math.floor(Math.random() * 31) - 15);
-    // สุ่มโบนัสศัตรูเล็กน้อย
-    const randomBonus = Math.floor(Math.random() * 20); 
-    return Math.max(0, Math.min(130, baseEnemy + randomBonus)); // Max 130 เผื่อคริ
+    // ฐานพลังศัตรู (ลดความโหดลงหน่อยเพื่อให้สมดุลกับเพดาน 100)
+    const baseEnemy = playerHealth + (Math.floor(Math.random() * 21) - 10); // +/- 10 พอ
+    const randomBonus = Math.floor(Math.random() * 15); 
+    
+    // 👇 Limit ที่ 100
+    return Math.max(0, Math.min(100, baseEnemy + randomBonus)); 
   });
 
   const [battleState, setBattleState] = useState('IDLE');
   const [winner, setWinner] = useState(null);
-  const [log, setLog] = useState([]); // เก็บข้อความการต่อสู้
+  const [log, setLog] = useState([]); 
 
   // --- 3. ฟังก์ชันเริ่มต่อสู้ ---
   const startBattle = () => {
     setBattleState('FIGHTING');
-    setLog([]); // เคลียร์ log เก่า
+    setLog([]); 
 
-    // Phase 1: คำนวณพลังของเรา (แสดง Effect)
     const finalMyPower = calculateCombatPower(myStats.health, myStats.hunger, myStats.happiness, myStats.energy);
     setMyPower(finalMyPower);
 
-    // สร้าง Log การต่อสู้เพื่อความสนุก
     const battleLogs = [];
-    if (myStats.hunger >= 80) battleLogs.push("🍖 Full Stomach! Attack Bonus +15");
-    if (myStats.happiness >= 90) battleLogs.push("💖 High Spirits! Critical Chance Active...");
-    if (myStats.energy < 30) battleLogs.push("💤 Too Tired... Power Penalty -20");
+    // ปรับข้อความ Log ให้สื่อความหมายว่าพลังตันที่ 100
+    if (finalMyPower === 100) battleLogs.push("🔥 MAX POWER REACHED (100)!");
+    if (myStats.hunger >= 80) battleLogs.push("🍖 Fed Well: Power Boosted");
+    if (myStats.happiness >= 90) battleLogs.push("💖 Lucky: Critical Hit Chance");
+    if (myStats.energy < 30) battleLogs.push("💤 Tired: Power Reduced");
     setLog(battleLogs);
 
-    // รอ Animation
     setTimeout(() => {
-      // ตัดสินผล
       if (finalMyPower > enemyPower) {
         setWinner('PLAYER');
         saveWinRecord();
@@ -107,8 +108,8 @@ const Battle = () => {
                 ⚔️ BATTLE ARENA
             </h1>
             <div className="flex gap-4 justify-center mt-2 text-xs md:text-sm text-gray-300">
-                <span className={myStats.hunger >= 80 ? "text-green-400 font-bold" : ""}>🍖 Hunger &gt; 80 = +ATK</span>
-                <span className={myStats.happiness >= 90 ? "text-pink-400 font-bold" : ""}>💖 Happy &gt; 90 = CRIT?</span>
+                <span className={myStats.hunger >= 80 ? "text-green-400 font-bold" : ""}>🍖 Hunger &gt; 80 = Buff</span>
+                <span className={myStats.happiness >= 90 ? "text-pink-400 font-bold" : ""}>💖 Happy &gt; 90 = Crit</span>
             </div>
         </div>
 
@@ -123,11 +124,13 @@ const Battle = () => {
             `}>
                 <div className="mb-4 text-center bg-black/60 p-3 rounded-xl border border-blue-500/30 backdrop-blur-sm">
                     <div className="text-blue-300 font-bold mb-1 text-xl">YOU</div>
-                    {/* Health Bar */}
-                    <div className="w-32 h-2 bg-gray-700 rounded-full mb-1">
-                        <div style={{width: `${myStats.health}%`}} className="h-full bg-green-500 rounded-full"></div>
+                    
+                    {/* Health Bar (แสดงผลตาม myPower ที่คำนวณแล้ว) */}
+                    <div className="w-32 h-2 bg-gray-700 rounded-full mb-1 overflow-hidden border border-gray-600">
+                        {/* ใช้ myPower แทน myStats.health เพื่อให้เห็นผลของการบัฟในการต่อสู้ */}
+                        <div style={{width: `${battleState === 'IDLE' ? myStats.health : myPower}%`}} className="h-full bg-green-500 transition-all duration-1000"></div>
                     </div>
-                    {/* Final Power Display */}
+                    
                     <div className="text-white text-2xl font-black mt-2">
                         {battleState === 'IDLE' ? 'Ready?' : myPower} 
                         <span className="text-xs font-normal text-gray-400 block">Combat Power</span>
@@ -136,14 +139,13 @@ const Battle = () => {
 
                 <div className="relative">
                     <PetDisplay status={battleState === 'FIGHTING' ? 'WALK' : 'IDLE'} size={180} />
-                    {/* Effect Visuals */}
                     {battleState === 'FIGHTING' && myStats.hunger >= 80 && (
                         <div className="absolute -top-5 right-0 text-2xl animate-bounce">🔥</div>
                     )}
                 </div>
             </div>
 
-            {/* --- VS / LOGS (Center) --- */}
+            {/* --- VS / LOGS --- */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-full max-w-xs text-center pointer-events-none">
                 {battleState === 'FIGHTING' ? (
                      <div className="text-9xl animate-ping opacity-80">💥</div>
@@ -163,10 +165,16 @@ const Battle = () => {
                 ${winner === 'PLAYER' ? 'grayscale opacity-50 blur-sm' : ''}
             `}>
                 <div className="mb-4 text-center bg-black/60 p-3 rounded-xl border border-red-500/30 backdrop-blur-sm">
-                    <div className="text-red-300 font-bold mb-1 text-xl">RIVAL DRAGON</div>
+                    <div className="text-red-300 font-bold mb-1 text-xl">RIVAL</div>
+                    
+                    {/* Enemy Bar (เพิ่มหลอดเลือดศัตรูให้ดูสมจริง) */}
+                     <div className="w-32 h-2 bg-gray-700 rounded-full mb-1 overflow-hidden border border-gray-600">
+                        <div style={{width: `${battleState === 'IDLE' ? 100 : enemyPower}%`}} className="h-full bg-red-500 transition-all duration-1000"></div>
+                    </div>
+
                     <div className="text-white text-2xl font-black mt-2">
                         {battleState === 'IDLE' ? '???' : enemyPower}
-                        <span className="text-xs font-normal text-gray-400 block">Estimated Power</span>
+                        <span className="text-xs font-normal text-gray-400 block">Power</span>
                     </div>
                 </div>
 
@@ -177,10 +185,8 @@ const Battle = () => {
 
         </div>
 
-        {/* --- CONTROLS / LOGS --- */}
+        {/* --- CONTROLS --- */}
         <div className="flex flex-col items-center justify-center mt-4 min-h-[100px]">
-            
-            {/* Battle Logs */}
             {battleState !== 'IDLE' && (
                 <div className="mb-4 space-y-1 text-center h-16">
                     {log.map((l, i) => (
@@ -188,11 +194,6 @@ const Battle = () => {
                             {l}
                         </div>
                     ))}
-                    {battleState === 'FINISHED' && (
-                        <div className="text-white text-sm">
-                            Your Power: {myPower} vs Enemy: {enemyPower}
-                        </div>
-                    )}
                 </div>
             )}
 
