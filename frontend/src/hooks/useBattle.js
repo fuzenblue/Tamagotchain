@@ -26,6 +26,7 @@ export const useBattle = () => {
   const [lastBattleTime, setLastBattleTime] = useState(0)
   const [battleCooldown, setBattleCooldown] = useState(0)
   const [isFetching, setIsFetching] = useState(false)
+  const [battleResult, setBattleResult] = useState(null)
 
   /**
    * Fetch player battle statistics
@@ -169,7 +170,34 @@ export const useBattle = () => {
   const enterBattle = async () => {
     try {
       const value = parseValue(GAME_CONFIG.BATTLE_ENTRY)
-      const receipt = await writeContract('enterBattle', [], { value })
+      const tx = await writeContract('enterBattle', [], { value })
+      
+      // Wait for transaction receipt
+      const receipt = await tx.wait()
+      
+      // Parse BattleEnded event from receipt
+      for (const log of receipt.logs) {
+        try {
+          const parsedLog = contract.interface.parseLog(log)
+          
+          if (parsedLog.name === 'BattleEnded') {
+            const winner = parsedLog.args.winner
+            const loser = parsedLog.args.loser
+            const reward = parsedLog.args.reward
+            
+            const isWinner = winner.toLowerCase() === account.toLowerCase()
+            
+            setBattleResult({
+              winner,
+              loser,
+              isWinner,
+              reward: reward.toString(),
+            })
+          }
+        } catch (err) {
+          continue
+        }
+      }
       
       // Refresh data after battle
       await Promise.all([
@@ -242,11 +270,20 @@ export const useBattle = () => {
         reward: reward.toString(),
       })
 
-      // If current user was in battle, refresh data
+      // If current user was in battle, show result
       if (
         winner.toLowerCase() === account.toLowerCase() ||
         loser.toLowerCase() === account.toLowerCase()
       ) {
+        const isWinner = winner.toLowerCase() === account.toLowerCase()
+        
+        setBattleResult({
+          winner,
+          loser,
+          isWinner,
+          reward: reward.toString(),
+        })
+        
         await Promise.all([
           fetchPlayerStats(),
           fetchBattleHistory(),
@@ -305,6 +342,7 @@ export const useBattle = () => {
     totalBattles,
     waitingPlayers,
     battleCooldown,
+    battleResult,
     
     // Computed
     canBattle: canBattle(),
@@ -315,6 +353,7 @@ export const useBattle = () => {
     refreshStats: fetchPlayerStats,
     refreshHistory: fetchBattleHistory,
     getBattleResult,
+    clearBattleResult: () => setBattleResult(null),
     
     // States
     isLoading,

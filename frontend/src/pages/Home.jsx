@@ -53,17 +53,17 @@ const Home = () => {
                 {isConnected ? (
                     <div className="space-y-4">
                         <button
-                            onClick={disconnect}
-                            className="px-8 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold transition"
+                            onClick={() => window.location.href = '/my-pet'}
+                            className="px-8 py-3 bg-white text-purple-600 rounded-lg font-bold hover:scale-105 transition"
                         >
-                            Disconnect Wallet
+                            Enter Game →
                         </button>
                         <div>
                             <button
-                                onClick={() => window.location.href = '/my-pet'}
-                                className="px-8 py-3 bg-white text-purple-600 rounded-lg font-bold hover:scale-105 transition"
+                                onClick={disconnect}
+                                className="px-8 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold transition"
                             >
-                                Enter Game →
+                                Disconnect Wallet
                             </button>
                         </div>
                     </div>

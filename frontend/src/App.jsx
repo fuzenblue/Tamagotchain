@@ -6,6 +6,7 @@ import MyPet from './pages/MyPet';
 import Battle from './pages/Battle'
 import Leaderboard from './pages/Leaderboard'
 import BattleHistory from './pages/BattleHistory'
+import Profile from './pages/Profile'
 
 // Import Layout
 import MainLayout from './components/layout/MainLayout'
@@ -24,6 +25,7 @@ function App() {
             <Route path="/battle" element={<Battle />} />
             <Route path="/battle-history" element={<BattleHistory />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </MainLayout>
       </Web3Provider>

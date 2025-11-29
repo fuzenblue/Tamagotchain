@@ -15,8 +15,10 @@ contract TamagotChain {
         uint256 happiness;     // 0-100
         uint256 energy;        // 0-100
         uint256 cleanliness;   // 0-100
+        uint256 health;        // 0-100
         uint256 lastUpdate;    // timestamp
         uint256 lastClean;     // timestamp
+        uint256 lastHealthUpdate; // timestamp
         uint256 birthTime;     // timestamp
         bool alive;
     }
@@ -64,9 +66,11 @@ contract TamagotChain {
             hunger: 50,
             happiness: 50,
             energy: 50,
-            cleanliness: 100,
+            cleanliness: 50,
+            health: 50,
             lastUpdate: block.timestamp,
             lastClean: block.timestamp,
+            lastHealthUpdate: block.timestamp,
             birthTime: block.timestamp,
             alive: true
         });
@@ -136,12 +140,13 @@ contract TamagotChain {
         uint256 happiness,
         uint256 energy,
         uint256 cleanliness,
+        uint256 health,
         uint256 lastUpdate,
         uint256 birthTime,
         bool alive
     ) {
         if (!hasPet[_owner]) {
-            return ("", 0, 0, 0, 0, 0, 0, false);
+            return ("", 0, 0, 0, 0, 0, 0, 0, false);
         }
         
         Pet memory pet = pets[_owner];
@@ -186,12 +191,30 @@ contract TamagotChain {
             currentCleanliness = currentCleanliness > decay ? currentCleanliness - decay : 0;
         }
         
+        // Calculate health based on stats
+        uint256 currentHealth = pet.health;
+        uint256 timeSinceHealthUpdate = block.timestamp - pet.lastHealthUpdate;
+        
+        // If all stats > 80%, health increases 5% every 20 seconds
+        if (pet.hunger > 80 && pet.happiness > 80 && pet.energy > 80 && currentCleanliness > 80) {
+            uint256 periodsElapsed = timeSinceHealthUpdate / 20 seconds;
+            uint256 healthIncrease = periodsElapsed * 5;
+            currentHealth = currentHealth + healthIncrease > 100 ? 100 : currentHealth + healthIncrease;
+        }
+        // If any stat <= 79%, health decreases 9% every 15 seconds
+        else if (pet.hunger <= 79 || pet.happiness <= 79 || pet.energy <= 79 || currentCleanliness <= 79) {
+            uint256 periodsElapsed = timeSinceHealthUpdate / 15 seconds;
+            uint256 healthDecrease = periodsElapsed * 9;
+            currentHealth = currentHealth > healthDecrease ? currentHealth - healthDecrease : 0;
+        }
+        
         return (
             pet.name,
             pet.hunger,
             pet.happiness,
             pet.energy,
             currentCleanliness,
+            currentHealth,
             pet.lastUpdate,
             pet.birthTime,
             pet.alive
@@ -216,10 +239,18 @@ contract TamagotChain {
     }
     
     /**
-     * @dev Calculate combat power - simplified
+     * @dev Calculate combat power based on stats
+     * Formula: (Hunger * 0.3) + (Happiness * 0.2) + (Energy * 0.5)
      */
-    function calculateCP(address) public pure returns (uint256) {
-        return 50; // Fixed CP for testing
+    function calculateCP(address _owner) public view returns (uint256) {
+        if (!hasPet[_owner]) return 0;
+        
+        Pet storage pet = pets[_owner];
+        if (!pet.alive) return 0;
+        
+        // Calculate CP: 30% hunger + 20% happiness + 50% energy
+        uint256 cp = (pet.hunger * 30 / 100) + (pet.happiness * 20 / 100) + (pet.energy * 50 / 100);
+        return cp;
     }
     
     /**
@@ -236,8 +267,10 @@ contract TamagotChain {
         pet.happiness = 50;
         pet.energy = 50;
         pet.cleanliness = 100;
+        pet.health = 100;
         pet.lastUpdate = block.timestamp;
         pet.lastClean = block.timestamp;
+        pet.lastHealthUpdate = block.timestamp;
         
         emit PetRevived(msg.sender, block.timestamp);
     }

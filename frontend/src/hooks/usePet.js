@@ -47,7 +47,7 @@ export const usePet = () => {
         
         console.log('Contract Data (Raw):', petData)
         
-        // petData is a tuple: [name, hunger, happiness, energy, cleanliness, lastUpdate, birthTime, alive]
+        // petData is a tuple: [name, hunger, happiness, energy, cleanliness, health, lastUpdate, birthTime, alive]
         if (petData && petData[0] && petData[0] !== '') {
           const petObject = {
             name: petData[0],
@@ -55,9 +55,10 @@ export const usePet = () => {
             happiness: Number(petData[2]),
             energy: Number(petData[3]),
             cleanliness: Number(petData[4]),
-            lastUpdate: Number(petData[5]),
-            birthTime: Number(petData[6]),
-            alive: petData[7],
+            health: Number(petData[5]),
+            lastUpdate: Number(petData[6]),
+            birthTime: Number(petData[7]),
+            alive: petData[8],
           }
 
           console.log('Current Stats from Contract:', {
@@ -74,6 +75,9 @@ export const usePet = () => {
           const stats = calculateCurrentStats(petObject)
           console.log('Calculated Stats (with decay):', stats)
           setCurrentStats(stats)
+
+          // Save pet name to localStorage
+          localStorage.setItem('my_pet_name', petObject.name)
 
           // Fetch cooldowns
           await fetchCooldowns()

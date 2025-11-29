@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePet } from '../hooks/usePet';
 import { useWallet } from '../hooks/useWallet';
+import { useBattle } from '../hooks/useBattle';
+import { ethers } from 'ethers';
 
 import PixelBar from '../components/common/PixelBar';
 import SideButton from '../components/common/SideButton';
@@ -45,10 +47,21 @@ const MyPet = () => {
         isFetching,
         error,
     } = usePet();
+    const { battleResult, clearBattleResult } = useBattle();
 
     // --- 0. BASIC SETUP ---
     const DEFAULT_NAMES = ["Draco", "Pyro", "Spike", "Falkor", "Smaug"];
     const [petName, setPetName] = useState(() => localStorage.getItem('my_pet_name') || DEFAULT_NAMES[0]);
+    
+    // Load initial stats from localStorage or use defaults
+    const loadInitialStats = () => {
+        const saved = localStorage.getItem('pet_stats');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return parsed;
+        }
+        return { health: 50, hunger: 50, happiness: 50, energy: 50, cleanliness: 50 };
+    };
     const [isEditingName, setIsEditingName] = useState(false);
     const [tempName, setTempName] = useState(petName);
     const inputRef = useRef(null);
@@ -58,11 +71,12 @@ const MyPet = () => {
     const [confirmData, setConfirmData] = useState(null); // { mode, type, cost, msg }
 
     // --- 1. STATS STATE ---
-    const [health, setHealth] = useState(80);
-    const [hunger, setHunger] = useState(86);
-    const [happiness, setHappiness] = useState(88);
-    const [energy, setEnergy] = useState(98);
-    const [cleanliness, setCleanliness] = useState(100);
+    const initialStats = loadInitialStats();
+    const [health, setHealth] = useState(initialStats.health);
+    const [hunger, setHunger] = useState(initialStats.hunger);
+    const [happiness, setHappiness] = useState(initialStats.happiness);
+    const [energy, setEnergy] = useState(initialStats.energy);
+    const [cleanliness, setCleanliness] = useState(initialStats.cleanliness);
     const [petStatus, setPetStatus] = useState('IDLE');
 
     // --- 2. INVENTORY & TIMERS STATE ---
@@ -87,10 +101,16 @@ const MyPet = () => {
     const [cooldownEndTime, setCooldownEndTime] = useState({ feed: 0, play: 0, rest: 0, clean: 0 });
     const [cooldownDisplay, setCooldownDisplay] = useState({ feed: 0, play: 0, rest: 0, clean: 0 });
 
-    // Save stocks
+    // Save stocks and stats
     useEffect(() => {
         localStorage.setItem('pet_stocks', JSON.stringify(stocks));
     }, [stocks]);
+    
+    useEffect(() => {
+        if (hasPet) {
+            localStorage.setItem('pet_stats', JSON.stringify({ health, hunger, happiness, energy, cleanliness }));
+        }
+    }, [health, hunger, happiness, energy, cleanliness, hasPet]);
 
     // Update end timestamps from contract (contract sends timestamps, not seconds)
     useEffect(() => {
@@ -159,13 +179,20 @@ const MyPet = () => {
 
             // 4. STAT DECAY - Use blockchain stats if available
             if (currentStats) {
-                setHunger(currentStats.hunger);
-                setHappiness(currentStats.happiness);
-                setEnergy(currentStats.energy);
-                setHealth(currentStats.alive ? 100 : 0);
+                const newStats = {
+                    hunger: currentStats.hunger,
+                    happiness: currentStats.happiness,
+                    energy: currentStats.energy,
+                    health: currentStats.health || 100,
+                    cleanliness: currentStats.cleanliness !== undefined ? currentStats.cleanliness : cleanliness
+                };
+                setHunger(newStats.hunger);
+                setHappiness(newStats.happiness);
+                setEnergy(newStats.energy);
+                setHealth(newStats.health);
+                setCleanliness(newStats.cleanliness);
             } else {
                 // Local decay - per 5 seconds (scaled from per hour)
-                // 1/hour = 0.00139/5sec, 0.5/hour = 0.000694/5sec
                 setHunger(prev => Math.max(0, prev - 0.00139));
                 setEnergy(prev => Math.max(0, prev - 0.00139));
                 setCleanliness(prev => Math.max(0, prev - 0.00278));
@@ -173,7 +200,15 @@ const MyPet = () => {
                 let happyDecay = 0.000694;
                 if (cleanliness < 40) happyDecay = 0.00208;
                 setHappiness(prev => Math.max(0, prev - happyDecay));
-                setHealth(Math.floor((hunger + energy) / 2));
+                
+                // Health logic: all stats > 80% = +5% per 20s, else -9% per 15s
+                if (hunger > 80 && happiness > 80 && energy > 80 && cleanliness > 80) {
+                    // +5% every 20 seconds = +0.025% per 5 seconds
+                    setHealth(prev => Math.min(100, prev + 0.025));
+                } else if (hunger <= 79 || happiness <= 79 || energy <= 79 || cleanliness <= 79) {
+                    // -9% every 15 seconds = -0.3% per 5 seconds
+                    setHealth(prev => Math.max(0, prev - 0.3));
+                }
             }
 
         }, 5000);
@@ -398,6 +433,26 @@ const MyPet = () => {
 
         try {
             await createPet(petName);
+            
+            // Reset stocks to max
+            const newStocks = {
+                feed: { count: MAX_STOCK.feed, lastRegen: Date.now() },
+                play: { count: MAX_STOCK.play, lastRegen: Date.now() },
+                rest: { count: MAX_STOCK.rest, lastRegen: Date.now() }
+            };
+            setStocks(newStocks);
+            localStorage.setItem('pet_stocks', JSON.stringify(newStocks));
+            
+            // Reset stats to 50%
+            const newStats = { health: 50, hunger: 50, happiness: 50, energy: 50, cleanliness: 50 };
+            setHealth(50);
+            setHunger(50);
+            setHappiness(50);
+            setEnergy(50);
+            setCleanliness(50);
+            localStorage.setItem('pet_stats', JSON.stringify(newStats));
+            localStorage.setItem('my_pet_name', petName);
+            
             showToast('Pet created successfully!');
         } catch (err) {
             showToast(err.message, 'error');
@@ -479,6 +534,70 @@ const MyPet = () => {
 
     return (
         <div className="flex items-center justify-center p-4 font-mono select-none w-full h-full relative">
+
+            {/* === BATTLE RESULT MODAL === */}
+            {battleResult && (
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm p-4">
+                    <div className="bg-white border-[8px] border-gray-800 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
+                        {/* Animated Background */}
+                        <div className={`absolute inset-0 opacity-10 ${
+                            battleResult.isWinner ? 'bg-gradient-to-br from-green-400 to-yellow-400' : 'bg-gradient-to-br from-red-400 to-gray-600'
+                        }`}></div>
+                        
+                        {/* Content */}
+                        <div className="relative z-10">
+                            <h2 className="text-3xl font-black mb-6 uppercase text-center">
+                                🥊 Battle Finished! 🥊
+                            </h2>
+                            
+                            {battleResult.isWinner ? (
+                                <div className="text-center mb-6">
+                                    <div className="text-6xl mb-4 animate-bounce">🎉</div>
+                                    <h3 className="text-4xl font-black text-green-600 mb-2">YOU WON!</h3>
+                                    <p className="text-gray-600 mb-4">Congratulations! You defeated your opponent!</p>
+                                    <div className="bg-green-100 border-4 border-green-500 rounded-xl p-4">
+                                        <div className="text-sm font-bold text-gray-600 mb-1">Reward Earned</div>
+                                        <div className="text-3xl font-black text-green-600">
+                                            {ethers.formatEther(battleResult.reward)} ETH
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center mb-6">
+                                    <div className="text-6xl mb-4">💀</div>
+                                    <h3 className="text-4xl font-black text-red-600 mb-2">YOU LOST...</h3>
+                                    <p className="text-gray-600 mb-4">Better luck next time! Train harder!</p>
+                                    <div className="bg-red-100 border-4 border-red-500 rounded-xl p-4">
+                                        <div className="text-sm font-bold text-gray-600 mb-1">Entry Fee Lost</div>
+                                        <div className="text-2xl font-black text-red-600">0.01 ETH</div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="bg-gray-100 border-2 border-gray-300 rounded-xl p-4 mb-6">
+                                <div className="text-xs font-bold text-gray-600 mb-2">Battle Details</div>
+                                <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                        <span>Winner:</span>
+                                        <span className="font-bold">{battleResult.winner.slice(0, 6)}...{battleResult.winner.slice(-4)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Loser:</span>
+                                        <span className="font-bold">{battleResult.loser.slice(0, 6)}...{battleResult.loser.slice(-4)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button 
+                                onClick={clearBattleResult}
+                                className="w-full px-6 py-3 bg-purple-500 hover:bg-purple-400 text-white font-black text-lg rounded-xl border-b-4 border-purple-700 active:border-b-0 active:translate-y-1 uppercase"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* === PURCHASE MODAL === */}
             {purchaseModal && (
@@ -627,7 +746,7 @@ const MyPet = () => {
                             <div className="absolute top-0 left-0 w-full h-2 bg-white opacity-30 rounded-full"></div>
                         </div>
                     </div>
-                    <span className="text-xs font-bold mt-1">{health}% Health</span>
+                    <span className="text-xs font-bold mt-1">{health.toFixed(2)}% Health</span>
                 </div>
 
                 {/* MAIN CONTENT */}

@@ -9,8 +9,9 @@ const Sidebar = () => {
     { path: '/', name: 'HOME', icon: '🏠' },
     { path: '/my-pet', name: 'MY PET', icon: '🐲' },
     { path: '/battle', name: 'BATTLE', icon: '⚔️' },
-    { path: '/battle-history', name: 'HISTORY', icon: '📜' }, // ✅ เพิ่มปุ่มนี้
+    { path: '/battle-history', name: 'HISTORY', icon: '📜' },
     { path: '/leaderboard', name: 'RANK', icon: '🏆' },
+    { path: '/profile', name: 'PROFILE', icon: '👤' },
   ];
 
   return (
